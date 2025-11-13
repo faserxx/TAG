@@ -1,0 +1,53 @@
+/* Import xterm.js styles */
+@import '@xterm/xterm/css/xterm.css';
+
+/* Body styling */
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: #0a0a0a;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+
+/* Terminal container styling */
+#terminal {
+  width: 90vw;
+  max-width: 1200px;
+  height: 85vh;
+  padding: 20px;
+  background-color: #1e1e1e;
+  border: 2px solid #333;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+/* Terminal viewport styling */
+.xterm {
+  height: 100%;
+}
+
+.xterm-viewport {
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 768px) {
+  #terminal {
+    width: 95vw;
+    height: 90vh;
+    padding: 15px;
+    border-radius: 4px;
+  }
+}
+
+/* Add a subtle glow effect on focus */
+#terminal:focus-within {
+  border-color: #0dbc79;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 0 10px rgba(13, 188, 121, 0.3);
+}
