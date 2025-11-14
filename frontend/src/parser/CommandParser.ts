@@ -5,14 +5,17 @@ import {
   GameMode, 
   GameContext,
   CommandResult,
-  AutocompleteResult
+  Character
 } from '../types';
-import { GameEngine } from '../engine/GameEngine';
+import { GameEngine, Adventure } from '../engine/GameEngine';
 import { HelpSystem } from '../help/HelpSystem';
 import { AuthenticationManager } from '../auth/AuthenticationManager';
 import { AdministrationSystem } from '../admin/AdministrationSystem';
 import { MapRenderer } from '../engine/MapRenderer';
+import { AdminMapRenderer } from '../engine/AdminMapRenderer';
 import { ChatManager } from '../chat/ChatManager';
+import { Location } from '../engine/Location';
+import { Item } from '../engine/GameState';
 
 export class CommandParser implements ICommandParser {
   private commands: Map<string, Command> = new Map();
@@ -129,11 +132,38 @@ export class CommandParser implements ICommandParser {
       };
     }
 
-    const commandName = tokens[0].toLowerCase();
-    const args = tokens.slice(1);
+    // Try to match multi-word commands first (longest match wins)
+    // Check up to 3 words for command name
+    let commandName = '';
+    let args: string[] = [];
+    let resolvedCommand = '';
 
-    // Resolve aliases
-    const resolvedCommand = this.aliases.get(commandName) || commandName;
+    for (let wordCount = Math.min(3, tokens.length); wordCount >= 1; wordCount--) {
+      const potentialCommand = tokens.slice(0, wordCount).join(' ').toLowerCase();
+      
+      // Check if it's a direct command
+      if (this.commands.has(potentialCommand)) {
+        commandName = potentialCommand;
+        resolvedCommand = potentialCommand;
+        args = tokens.slice(wordCount);
+        break;
+      }
+      
+      // Check if it's an alias
+      if (this.aliases.has(potentialCommand)) {
+        commandName = potentialCommand;
+        resolvedCommand = this.aliases.get(potentialCommand)!;
+        args = tokens.slice(wordCount);
+        break;
+      }
+    }
+
+    // If no match found, treat first token as command
+    if (!resolvedCommand) {
+      commandName = tokens[0].toLowerCase();
+      args = tokens.slice(1);
+      resolvedCommand = this.aliases.get(commandName) || commandName;
+    }
 
     // Check if command exists
     if (!this.commands.has(resolvedCommand)) {
@@ -451,27 +481,69 @@ export class CommandParser implements ICommandParser {
     const lastToken = tokens[tokens.length - 1];
     const isPartialToken = !beforeCursor.endsWith(' ');
     
-    // Determine if we're completing a command or an argument
-    if (tokens.length === 1 && isPartialToken) {
-      // Completing command name
-      const commandSuggestions = this.getCommandSuggestions(lastToken, context.mode);
+    // Build the partial command string from tokens
+    const partialCommand = tokens.join(' ').toLowerCase();
+    
+    // Try to match complete multi-word commands (up to 3 words)
+    let matchedCommand = '';
+    let commandTokenCount = 0;
+    
+    // Only look for complete command match if we have a space after the last token
+    // (indicating we're done typing the command)
+    if (!isPartialToken) {
+      for (let wordCount = Math.min(3, tokens.length); wordCount >= 1; wordCount--) {
+        const potentialCommand = tokens.slice(0, wordCount).join(' ').toLowerCase();
+        
+        if (this.commands.has(potentialCommand) || this.aliases.has(potentialCommand)) {
+          matchedCommand = this.aliases.get(potentialCommand) || potentialCommand;
+          commandTokenCount = wordCount;
+          break;
+        }
+      }
+    }
+    
+    // Special case: if we have a partial token and didn't match a command above,
+    // try matching the first N-1 tokens to see if we're completing an argument
+    // for a multi-word command (e.g., "edit location entr" -> completing argument for "edit location")
+    if (!matchedCommand && isPartialToken && tokens.length > 1) {
+      for (let wordCount = Math.min(3, tokens.length - 1); wordCount >= 1; wordCount--) {
+        const potentialCommand = tokens.slice(0, wordCount).join(' ').toLowerCase();
+        
+        if (this.commands.has(potentialCommand) || this.aliases.has(potentialCommand)) {
+          // Check if this command expects arguments (location ID commands)
+          const resolvedCmd = this.aliases.get(potentialCommand) || potentialCommand;
+          const locationIdCommands = ['edit location', 'remove connection', 'delete location'];
+          
+          if (locationIdCommands.includes(resolvedCmd)) {
+            matchedCommand = resolvedCmd;
+            commandTokenCount = wordCount;
+            break;
+          }
+        }
+      }
+    }
+    
+    // If we haven't matched a complete command, we're still completing the command name
+    if (!matchedCommand) {
+      const { commands: commandNames, aliases: aliasNames } = this.getCommandSuggestionsDetailed(partialCommand, context.mode);
+      const allSuggestions = [...commandNames, ...aliasNames];
       
-      if (commandSuggestions.length === 1) {
+      // Set completionText only if there's exactly one primary command match (ignoring aliases)
+      if (commandNames.length === 1) {
         return { 
-          suggestions: commandSuggestions,
-          completionText: commandSuggestions[0]
+          suggestions: allSuggestions,
+          completionText: commandNames[0]
         };
       }
       
-      return { suggestions: commandSuggestions };
+      return { suggestions: allSuggestions };
     }
 
     // We're completing an argument
-    const commandName = tokens[0].toLowerCase();
-    const resolvedCommand = this.aliases.get(commandName) || commandName;
+    const resolvedCommand = matchedCommand;
     
     // Check if this command supports location ID autocomplete
-    const locationIdCommands = ['edit-location', 'remove-connection', 'delete-location'];
+    const locationIdCommands = ['edit location', 'remove connection', 'delete location'];
     
     if (!locationIdCommands.includes(resolvedCommand)) {
       return { suggestions: [] };
@@ -490,8 +562,8 @@ export class CommandParser implements ICommandParser {
     // Get all location IDs
     const locationIds = this.adminSystem.getLocationIds();
     
-    // Determine which argument position we're at
-    let argIndex = tokens.length - 1; // 0-based index for arguments (excluding command)
+    // Determine which argument position we're at (after the command tokens)
+    let argIndex = tokens.length - commandTokenCount; // 0-based index for arguments (excluding command)
     if (!isPartialToken) {
       argIndex++; // We're starting a new argument
     }
@@ -499,13 +571,13 @@ export class CommandParser implements ICommandParser {
     // Check if current argument position should be a location ID
     let shouldAutocomplete = false;
     
-    if (resolvedCommand === 'edit-location' && argIndex === 1) {
+    if (resolvedCommand === 'edit location' && argIndex === 1) {
       // First argument is location ID
       shouldAutocomplete = true;
-    } else if (resolvedCommand === 'remove-connection' && argIndex === 1) {
+    } else if (resolvedCommand === 'remove connection' && argIndex === 1) {
       // First argument is location ID
       shouldAutocomplete = true;
-    } else if (resolvedCommand === 'delete-location' && argIndex === 1) {
+    } else if (resolvedCommand === 'delete location' && argIndex === 1) {
       // First argument is location ID
       shouldAutocomplete = true;
     }
@@ -533,32 +605,255 @@ export class CommandParser implements ICommandParser {
   }
 
   /**
-   * Get command name suggestions based on partial input
+   * Get command name suggestions with commands and aliases separated
    */
-  private getCommandSuggestions(partial: string, mode: GameMode): string[] {
+  private getCommandSuggestionsDetailed(partial: string, mode: GameMode): { commands: string[]; aliases: string[] } {
     const lowerPartial = partial.toLowerCase();
-    const suggestions: string[] = [];
+    const commandNames: string[] = [];
+    const aliasNames: string[] = [];
 
-    // Check command names
+    // Split partial into words for multi-word matching
+    const partialWords = lowerPartial.split(' ');
+    const lastPartialWord = partialWords[partialWords.length - 1];
+    const completeWords = partialWords.slice(0, -1);
+
+    // Check command names (primary names with spaces)
     for (const [commandName, command] of this.commands) {
       if (command.mode === mode || command.mode === 'both') {
-        if (commandName.startsWith(lowerPartial)) {
-          suggestions.push(commandName);
+        const commandWords = commandName.split(' ');
+        
+        // Check if command matches the partial input
+        let matches = false;
+        
+        if (completeWords.length === 0) {
+          // Single word partial - simple prefix match
+          matches = commandName.startsWith(lowerPartial);
+        } else {
+          // Multi-word partial - check if all complete words match and last word is partial match
+          if (commandWords.length > completeWords.length) {
+            // Check all complete words match exactly
+            const allCompleteWordsMatch = completeWords.every((word, i) => commandWords[i] === word);
+            // Check last partial word matches
+            const lastWordMatches = commandWords[completeWords.length].startsWith(lastPartialWord);
+            matches = allCompleteWordsMatch && lastWordMatches;
+          }
+        }
+        
+        if (matches) {
+          commandNames.push(commandName);
         }
       }
     }
 
-    // Check aliases
+    // Check aliases (including hyphenated versions)
+    // Match hyphenated aliases by converting spaces to hyphens in the partial input
+    const hyphenatedPartial = lowerPartial.replace(/ /g, '-');
+    
     for (const [alias, commandName] of this.aliases) {
       const command = this.commands.get(commandName);
       if (command && (command.mode === mode || command.mode === 'both')) {
-        if (alias.startsWith(lowerPartial) && !suggestions.includes(alias)) {
-          suggestions.push(alias);
+        let matches = false;
+        
+        // Direct prefix match (e.g., "cre" matches "create")
+        if (alias.startsWith(lowerPartial) && !commandNames.includes(alias)) {
+          matches = true;
+        }
+        // Hyphenated match (e.g., "edit t" matches "edit-title" via "edit-t")
+        else if (alias.startsWith(hyphenatedPartial) && !commandNames.includes(alias)) {
+          // Only add hyphenated alias if the actual command name is also in the suggestions
+          const actualCommandName = this.commands.get(commandName)?.name;
+          if (actualCommandName && commandNames.includes(actualCommandName)) {
+            matches = true;
+          }
+        }
+        
+        if (matches) {
+          aliasNames.push(alias);
         }
       }
     }
 
-    return suggestions.sort();
+    // Sort each group alphabetically
+    return { 
+      commands: commandNames.sort(), 
+      aliases: aliasNames.sort() 
+    };
+  }
+
+  /**
+   * Get command name suggestions based on partial input
+   * Prioritizes space-separated command names over hyphenated aliases
+   * Supports partial matching of multi-word commands (e.g., "create adv" matches "create adventure")
+   */
+  private getCommandSuggestions(partial: string, mode: GameMode): string[] {
+    const { commands, aliases } = this.getCommandSuggestionsDetailed(partial, mode);
+    return [...commands, ...aliases];
+  }
+
+  /**
+   * Find a location by ID or name (case-insensitive)
+   */
+  private findLocationByIdOrName(identifier: string, adventure: Adventure): Location | null {
+    // Try exact ID match first
+    const byId = adventure.locations.get(identifier);
+    if (byId) {
+      return byId;
+    }
+    
+    // Try case-insensitive name match
+    const lowerIdentifier = identifier.toLowerCase();
+    for (const [, location] of adventure.locations) {
+      if (location.name.toLowerCase() === lowerIdentifier) {
+        return location;
+      }
+    }
+    
+    return null;
+  }
+
+  /**
+   * Format detailed location information with exits, characters, and items
+   */
+  private formatLocationDetails(location: Location, adventure: Adventure): string[] {
+    const output: string[] = [];
+    
+    output.push(`Selected location: "${location.name}"`);
+    output.push(`ID: ${location.id}`);
+    output.push(`Description: ${location.description}`);
+    output.push('');
+    
+    // Format exits
+    const exits = location.getExits();
+    if (exits.size > 0) {
+      output.push(`Exits (${exits.size}):`);
+      for (const [direction, targetId] of exits) {
+        const targetLocation = adventure.locations.get(targetId);
+        const targetName = targetLocation ? targetLocation.name : 'Unknown';
+        output.push(`  ${direction} → ${targetName} (${targetId})`);
+      }
+      output.push('');
+    } else {
+      output.push('Exits (0): None');
+      output.push('');
+    }
+    
+    // Format characters
+    const characters = location.getCharacters();
+    if (characters.length > 0) {
+      output.push(`Characters (${characters.length}):`);
+      for (const character of characters) {
+        const aiMarker = character.isAiPowered ? ' [AI]' : '';
+        output.push(`  • ${character.name}${aiMarker}`);
+        
+        if (character.isAiPowered && character.personality) {
+          const personalityPreview = character.personality.length > 50 
+            ? character.personality.substring(0, 50) + '...' 
+            : character.personality;
+          output.push(`    ${personalityPreview}`);
+        } else if (character.dialogue && character.dialogue.length > 0) {
+          const dialoguePreview = character.dialogue[0].length > 50 
+            ? character.dialogue[0].substring(0, 50) + '...' 
+            : character.dialogue[0];
+          output.push(`    "${dialoguePreview}"`);
+        }
+      }
+      output.push('');
+    } else {
+      output.push('Characters (0): None');
+      output.push('');
+    }
+    
+    // Format items
+    const items = location.getItems();
+    if (items.length > 0) {
+      output.push(`Items (${items.length}):`);
+      for (const item of items) {
+        output.push(`  • ${item.name}`);
+        const descPreview = item.description.length > 50 
+          ? item.description.substring(0, 50) + '...' 
+          : item.description;
+        output.push(`    ${descPreview}`);
+      }
+    } else {
+      output.push('Items (0): None');
+    }
+    
+    return output;
+  }
+
+  /**
+   * Format character list with optional location information
+   */
+  private formatCharacterList(characters: Character[], adventure: Adventure, showLocation: boolean): string[] {
+    const output: string[] = [];
+    
+    characters.forEach((character, index) => {
+      const aiMarker = character.isAiPowered ? ' [AI]' : '';
+      output.push(`${index + 1}. ${character.name}${aiMarker}`);
+      output.push(`   ID: ${character.id}`);
+      
+      // Show location if requested
+      if (showLocation) {
+        // Find which location this character is in
+        let locationName = 'Unknown';
+        for (const [, location] of adventure.locations) {
+          const chars = location.getCharacters();
+          if (chars.some(c => c.id === character.id)) {
+            locationName = location.name;
+            break;
+          }
+        }
+        output.push(`   Location: ${locationName}`);
+      }
+      
+      // Show dialogue or personality preview
+      if (character.isAiPowered && character.personality) {
+        const personalityPreview = character.personality.length > 50 
+          ? character.personality.substring(0, 50) + '...' 
+          : character.personality;
+        output.push(`   Personality: ${personalityPreview}`);
+      } else if (character.dialogue && character.dialogue.length > 0) {
+        const dialoguePreview = character.dialogue[0].length > 50 
+          ? character.dialogue[0].substring(0, 50) + '...' 
+          : character.dialogue[0];
+        output.push(`   Dialogue: "${dialoguePreview}"`);
+      }
+      
+      output.push('');
+    });
+    
+    return output;
+  }
+
+  /**
+   * Format item list with optional location information
+   */
+  private formatItemList(items: Item[], adventure: Adventure, showLocation: boolean): string[] {
+    const output: string[] = [];
+    
+    items.forEach((item, index) => {
+      output.push(`${index + 1}. ${item.name}`);
+      output.push(`   ID: ${item.id}`);
+      
+      // Show location if requested
+      if (showLocation) {
+        // Find which location this item is in
+        let locationName = 'Unknown';
+        for (const [, location] of adventure.locations) {
+          const locationItems = location.getItems();
+          if (locationItems.some(i => i.id === item.id)) {
+            locationName = location.name;
+            break;
+          }
+        }
+        output.push(`   Location: ${locationName}`);
+      }
+      
+      output.push(`   Description: ${item.description}`);
+      output.push('');
+    });
+    
+    return output;
   }
 
   /**
@@ -700,7 +995,7 @@ export class CommandParser implements ICommandParser {
     // Player mode commands
     this.registerCommand({
       name: 'move',
-      aliases: ['go', 'm'],
+      aliases: ['go'],
       description: 'Move in a direction',
       syntax: 'move <direction>',
       examples: ['move north', 'move south', 'go east'],
@@ -941,11 +1236,48 @@ export class CommandParser implements ICommandParser {
     this.registerCommand({
       name: 'map',
       aliases: ['m'],
-      description: 'Display map of visited locations',
+      description: 'Display map of visited locations (player) or complete adventure map (admin)',
       syntax: 'map',
       examples: ['map'],
-      mode: GameMode.Player,
-      handler: async (_args: string[]) => {
+      mode: 'both',
+      handler: async (_args: string[], context: GameContext) => {
+        // Admin mode: show complete adventure map
+        if (context.mode === GameMode.Admin) {
+          // Validate that an adventure is selected
+          const adventure = this.adminSystem.getCurrentAdventure();
+          
+          if (!adventure) {
+            return {
+              success: false,
+              output: [],
+              error: {
+                code: 'NO_ADVENTURE_SELECTED',
+                message: 'No adventure selected',
+                suggestion: 'Use "select adventure <id>" to select an adventure for editing.'
+              }
+            };
+          }
+
+          // Get selected location ID from adminSystem
+          const selectedLocationId = this.adminSystem.getCurrentLocationId();
+
+          // Create AdminMapRenderer instance with adventure locations and selected location
+          const renderer = new AdminMapRenderer(
+            adventure.locations,
+            selectedLocationId
+          );
+
+          // Call renderer's render() method and return output
+          const mapOutput = renderer.render();
+
+          return {
+            success: true,
+            output: mapOutput,
+            error: undefined
+          };
+        }
+
+        // Player mode: show visited locations map
         // Validate game engine initialization
         if (!this.gameEngine) {
           return {
@@ -1191,11 +1523,11 @@ export class CommandParser implements ICommandParser {
 
     // Admin mode commands
     this.registerCommand({
-      name: 'create-adventure',
-      aliases: ['create'],
+      name: 'create adventure',
+      aliases: ['create', 'create-adventure'],
       description: 'Create a new adventure',
-      syntax: 'create-adventure <name>',
-      examples: ['create-adventure "My Adventure"'],
+      syntax: 'create adventure <name>',
+      examples: ['create adventure "My Adventure"'],
       mode: GameMode.Admin,
       handler: async (args: string[]) => {
         if (args.length === 0) {
@@ -1241,11 +1573,11 @@ export class CommandParser implements ICommandParser {
     });
 
     this.registerCommand({
-      name: 'add-location',
-      aliases: ['addloc'],
+      name: 'add location',
+      aliases: ['addloc', 'add-location'],
       description: 'Add a location to the adventure',
-      syntax: 'add-location <name> <description>',
-      examples: ['add-location "Temple Entrance" "You stand before an ancient temple..."'],
+      syntax: 'add location <name> <description>',
+      examples: ['add location "Temple Entrance" "You stand before an ancient temple..."'],
       mode: GameMode.Admin,
       handler: async (args: string[]) => {
         if (args.length === 0) {
@@ -1312,11 +1644,11 @@ export class CommandParser implements ICommandParser {
     });
 
     this.registerCommand({
-      name: 'add-character',
-      aliases: ['addchar'],
+      name: 'add character',
+      aliases: ['addchar', 'add-character'],
       description: 'Add a character to current location',
-      syntax: 'add-character <name> <dialogue...>',
-      examples: ['add-character "Temple Guard" "Welcome, traveler." "The temple holds many secrets."'],
+      syntax: 'add character <name> <dialogue...>',
+      examples: ['add character "Temple Guard" "Welcome, traveler." "The temple holds many secrets."'],
       mode: GameMode.Admin,
       handler: async (args: string[]) => {
         if (args.length === 0) {
@@ -1443,11 +1775,11 @@ export class CommandParser implements ICommandParser {
     });
 
     this.registerCommand({
-      name: 'save',
-      aliases: ['save-adventure'],
+      name: 'save adventure',
+      aliases: ['save', 'save-adventure'],
       description: 'Save current adventure',
-      syntax: 'save',
-      examples: ['save'],
+      syntax: 'save adventure',
+      examples: ['save adventure'],
       mode: GameMode.Admin,
       handler: async (_args: string[]) => {
         if (!this.authManager) {
@@ -1530,11 +1862,11 @@ export class CommandParser implements ICommandParser {
     });
 
     this.registerCommand({
-      name: 'list-adventures',
-      aliases: ['list', 'ls'],
+      name: 'list adventures',
+      aliases: ['list', 'ls', 'list-adventures'],
       description: 'List all adventures',
-      syntax: 'list-adventures',
-      examples: ['list-adventures'],
+      syntax: 'list adventures',
+      examples: ['list adventures'],
       mode: GameMode.Admin,
       handler: async (_args: string[]) => {
         try {
@@ -1582,11 +1914,11 @@ export class CommandParser implements ICommandParser {
     });
 
     this.registerCommand({
-      name: 'select-adventure',
-      aliases: ['select'],
+      name: 'select adventure',
+      aliases: ['select', 'select-adventure'],
       description: 'Select an adventure for editing',
-      syntax: 'select-adventure <adventure-id>',
-      examples: ['select-adventure demo-adventure', 'select my-adventure-123'],
+      syntax: 'select adventure <adventure-id>',
+      examples: ['select adventure demo-adventure', 'select my-adventure-123'],
       mode: GameMode.Admin,
       handler: async (args: string[]) => {
         if (args.length === 0) {
@@ -1639,11 +1971,11 @@ export class CommandParser implements ICommandParser {
     });
 
     this.registerCommand({
-      name: 'show-adventure',
-      aliases: ['show', 'view-adventure'],
+      name: 'show adventure',
+      aliases: ['show', 'view-adventure', 'show-adventure'],
       description: 'Display current adventure details',
-      syntax: 'show-adventure',
-      examples: ['show-adventure', 'show'],
+      syntax: 'show adventure',
+      examples: ['show adventure', 'show'],
       mode: GameMode.Admin,
       handler: async (_args: string[]) => {
         const adventure = this.adminSystem.getCurrentAdventure();
@@ -1655,7 +1987,7 @@ export class CommandParser implements ICommandParser {
             error: {
               code: 'NO_ADVENTURE_SELECTED',
               message: 'No adventure selected',
-              suggestion: 'Use "select-adventure <id>" to select an adventure for editing.'
+              suggestion: 'Use "list adventures" to see available adventures, then "select adventure <id>" to select one.'
             }
           };
         }
@@ -1717,11 +2049,11 @@ export class CommandParser implements ICommandParser {
     });
 
     this.registerCommand({
-      name: 'deselect-adventure',
-      aliases: ['deselect'],
+      name: 'deselect adventure',
+      aliases: ['deselect', 'deselect-adventure'],
       description: 'Deselect current adventure',
-      syntax: 'deselect-adventure',
-      examples: ['deselect-adventure', 'deselect'],
+      syntax: 'deselect adventure',
+      examples: ['deselect adventure', 'deselect'],
       mode: GameMode.Admin,
       handler: async (_args: string[]) => {
         const adventure = this.adminSystem.getCurrentAdventure();
@@ -1733,7 +2065,7 @@ export class CommandParser implements ICommandParser {
             error: {
               code: 'NO_ADVENTURE_SELECTED',
               message: 'No adventure is currently selected',
-              suggestion: 'Use "select-adventure <id>" to select an adventure.'
+              suggestion: 'Use "select adventure <id>" to select an adventure.'
             }
           };
         }
@@ -1755,11 +2087,11 @@ export class CommandParser implements ICommandParser {
     });
 
     this.registerCommand({
-      name: 'edit-title',
-      aliases: [],
+      name: 'edit title',
+      aliases: ['edit-title'],
       description: 'Edit the title of the current adventure',
-      syntax: 'edit-title <new-title>',
-      examples: ['edit-title "The Lost Temple"', 'edit-title "My Amazing Adventure"'],
+      syntax: 'edit title <new-title>',
+      examples: ['edit title "The Lost Temple"', 'edit title "My Amazing Adventure"'],
       mode: GameMode.Admin,
       handler: async (args: string[]) => {
         if (args.length === 0) {
@@ -1782,7 +2114,7 @@ export class CommandParser implements ICommandParser {
             error: {
               code: 'NO_ADVENTURE_SELECTED',
               message: 'No adventure selected',
-              suggestion: 'Use "select-adventure <id>" to select an adventure for editing.'
+              suggestion: 'Use "select adventure <id>" to select an adventure for editing.'
             }
           };
         }
@@ -1816,11 +2148,11 @@ export class CommandParser implements ICommandParser {
     });
 
     this.registerCommand({
-      name: 'edit-description',
-      aliases: [],
+      name: 'edit description',
+      aliases: ['edit-description'],
       description: 'Edit the description of the current adventure',
-      syntax: 'edit-description <new-description>',
-      examples: ['edit-description "An epic journey through ancient ruins"'],
+      syntax: 'edit description <new-description>',
+      examples: ['edit description "An epic journey through ancient ruins"'],
       mode: GameMode.Admin,
       handler: async (args: string[]) => {
         const adventure = this.adminSystem.getCurrentAdventure();
@@ -1831,7 +2163,7 @@ export class CommandParser implements ICommandParser {
             error: {
               code: 'NO_ADVENTURE_SELECTED',
               message: 'No adventure selected',
-              suggestion: 'Use "select-adventure <id>" to select an adventure for editing.'
+              suggestion: 'Use "select adventure <id>" to select an adventure for editing.'
             }
           };
         }
@@ -1865,13 +2197,13 @@ export class CommandParser implements ICommandParser {
     });
 
     this.registerCommand({
-      name: 'edit-location',
-      aliases: [],
+      name: 'edit location',
+      aliases: ['edit-location'],
       description: 'Edit a location property',
-      syntax: 'edit-location <location-id> <property> <value>',
+      syntax: 'edit location <location-id> <property> <value>',
       examples: [
-        'edit-location entrance-123 name "Grand Entrance"',
-        'edit-location hall-456 description "A vast hall with towering columns"'
+        'edit location entrance-123 name "Grand Entrance"',
+        'edit location hall-456 description "A vast hall with towering columns"'
       ],
       mode: GameMode.Admin,
       handler: async (args: string[]) => {
@@ -1895,7 +2227,7 @@ export class CommandParser implements ICommandParser {
             error: {
               code: 'NO_ADVENTURE_SELECTED',
               message: 'No adventure selected',
-              suggestion: 'Use "select-adventure <id>" to select an adventure for editing.'
+              suggestion: 'Use "select adventure <id>" to select an adventure for editing.'
             }
           };
         }
@@ -1948,11 +2280,11 @@ export class CommandParser implements ICommandParser {
     });
 
     this.registerCommand({
-      name: 'remove-connection',
-      aliases: ['remove-exit'],
+      name: 'remove connection',
+      aliases: ['remove-exit', 'remove-connection'],
       description: 'Remove a connection from a location',
-      syntax: 'remove-connection <from-location-id> <direction>',
-      examples: ['remove-connection entrance-123 north', 'remove-connection hall-456 south'],
+      syntax: 'remove connection <from-location-id> <direction>',
+      examples: ['remove connection entrance-123 north', 'remove connection hall-456 south'],
       mode: GameMode.Admin,
       handler: async (args: string[]) => {
         if (args.length < 2) {
@@ -1975,7 +2307,7 @@ export class CommandParser implements ICommandParser {
             error: {
               code: 'NO_ADVENTURE_SELECTED',
               message: 'No adventure selected',
-              suggestion: 'Use "select-adventure <id>" to select an adventure for editing.'
+              suggestion: 'Use "select adventure <id>" to select an adventure for editing.'
             }
           };
         }
@@ -2010,11 +2342,11 @@ export class CommandParser implements ICommandParser {
     });
 
     this.registerCommand({
-      name: 'create-ai-character',
-      aliases: ['create-ai-npc'],
+      name: 'create ai character',
+      aliases: ['create-ai-npc', 'create-ai-character'],
       description: 'Create an AI-powered character in current location',
-      syntax: 'create-ai-character <name> <personality>',
-      examples: ['create-ai-character "Ancient Sage" "A wise mystic who knows the temple secrets"'],
+      syntax: 'create ai character <name> <personality>',
+      examples: ['create ai character "Ancient Sage" "A wise mystic who knows the temple secrets"'],
       mode: GameMode.Admin,
       handler: async (args: string[]) => {
         if (args.length === 0) {
@@ -2074,11 +2406,11 @@ export class CommandParser implements ICommandParser {
     });
 
     this.registerCommand({
-      name: 'edit-character-personality',
-      aliases: ['edit-personality'],
+      name: 'edit character personality',
+      aliases: ['edit-personality', 'edit-character-personality'],
       description: 'Edit the personality of an AI character',
-      syntax: 'edit-character-personality <character-id> <new-personality>',
-      examples: ['edit-character-personality sage-123 "A mysterious oracle with cryptic wisdom"'],
+      syntax: 'edit character personality <character-id> <new-personality>',
+      examples: ['edit character personality sage-123 "A mysterious oracle with cryptic wisdom"'],
       mode: GameMode.Admin,
       handler: async (args: string[]) => {
         if (args.length === 0) {
@@ -2137,14 +2469,14 @@ export class CommandParser implements ICommandParser {
     });
 
     this.registerCommand({
-      name: 'set-ai-config',
-      aliases: ['config-ai'],
+      name: 'set ai config',
+      aliases: ['config-ai', 'set-ai-config'],
       description: 'Configure AI parameters for a character',
-      syntax: 'set-ai-config <character-id> [temperature=<value>] [max-tokens=<value>]',
+      syntax: 'set ai config <character-id> [temperature=<value>] [max-tokens=<value>]',
       examples: [
-        'set-ai-config sage-123 temperature=0.9',
-        'set-ai-config sage-123 max-tokens=200',
-        'set-ai-config sage-123 temperature=0.7 max-tokens=150'
+        'set ai config sage-123 temperature=0.9',
+        'set ai config sage-123 max-tokens=200',
+        'set ai config sage-123 temperature=0.7 max-tokens=150'
       ],
       mode: GameMode.Admin,
       handler: async (args: string[]) => {
@@ -2260,11 +2592,11 @@ export class CommandParser implements ICommandParser {
     });
 
     this.registerCommand({
-      name: 'delete-location',
-      aliases: ['del-location'],
+      name: 'delete location',
+      aliases: ['del-location', 'delete-location'],
       description: 'Delete a location from the current adventure',
-      syntax: 'delete-location <location-id>',
-      examples: ['delete-location entrance-123', 'delete-location hall-456'],
+      syntax: 'delete location <location-id>',
+      examples: ['delete location entrance-123', 'delete location hall-456'],
       mode: GameMode.Admin,
       handler: async (args: string[], context: GameContext) => {
         if (args.length === 0) {
@@ -2287,7 +2619,7 @@ export class CommandParser implements ICommandParser {
             error: {
               code: 'NO_ADVENTURE_SELECTED',
               message: 'No adventure selected',
-              suggestion: 'Use "select-adventure <id>" to select an adventure for editing.'
+              suggestion: 'Use "select adventure <id>" to select an adventure for editing.'
             }
           };
         }
@@ -2307,35 +2639,8 @@ export class CommandParser implements ICommandParser {
           };
         }
 
-        // Check if this is a confirmation call
-        if (context.confirmationPending) {
-          try {
-            this.adminSystem.deleteLocation(locationId);
-            
-            return {
-              success: true,
-              output: [
-                `Deleted location: "${location.name}"`,
-                '',
-                'All connections to this location have been removed.',
-                'Use "save" to persist your changes.'
-              ],
-              error: undefined
-            };
-          } catch (error) {
-            return {
-              success: false,
-              output: [],
-              error: {
-                code: 'DELETE_LOCATION_FAILED',
-                message: error instanceof Error ? error.message : 'Failed to delete location',
-                suggestion: 'Make sure the location is not the starting location.'
-              }
-            };
-          }
-        }
-
-        // First call - prompt for confirmation
+        // Prompt for confirmation (confirmation flow not yet implemented)
+        // TODO: Implement confirmation mechanism
         return {
           success: true,
           output: ['PROMPT_CONFIRMATION', `Delete location "${location.name}" (${locationId})? This will also remove all connections to this location.`],
@@ -2345,11 +2650,11 @@ export class CommandParser implements ICommandParser {
     });
 
     this.registerCommand({
-      name: 'delete-character',
-      aliases: ['del-character'],
+      name: 'delete character',
+      aliases: ['del-character', 'delete-character'],
       description: 'Delete a character from the current adventure',
-      syntax: 'delete-character <character-id>',
-      examples: ['delete-character guard-123', 'delete-character sage-456'],
+      syntax: 'delete character <character-id>',
+      examples: ['delete character guard-123', 'delete character sage-456'],
       mode: GameMode.Admin,
       handler: async (args: string[], context: GameContext) => {
         if (args.length === 0) {
@@ -2372,7 +2677,7 @@ export class CommandParser implements ICommandParser {
             error: {
               code: 'NO_ADVENTURE_SELECTED',
               message: 'No adventure selected',
-              suggestion: 'Use "select-adventure <id>" to select an adventure for editing.'
+              suggestion: 'Use "select adventure <id>" to select an adventure for editing.'
             }
           };
         }
@@ -2402,34 +2707,8 @@ export class CommandParser implements ICommandParser {
           };
         }
 
-        // Check if this is a confirmation call
-        if (context.confirmationPending) {
-          try {
-            this.adminSystem.deleteCharacter(characterId);
-            
-            return {
-              success: true,
-              output: [
-                `Deleted character: "${foundCharacter.name}"`,
-                '',
-                'Use "save" to persist your changes.'
-              ],
-              error: undefined
-            };
-          } catch (error) {
-            return {
-              success: false,
-              output: [],
-              error: {
-                code: 'DELETE_CHARACTER_FAILED',
-                message: error instanceof Error ? error.message : 'Failed to delete character',
-                suggestion: 'Please try again.'
-              }
-            };
-          }
-        }
-
-        // First call - prompt for confirmation
+        // Prompt for confirmation (confirmation flow not yet implemented)
+        // TODO: Implement confirmation mechanism
         return {
           success: true,
           output: ['PROMPT_CONFIRMATION', `Delete character "${foundCharacter.name}" (${characterId})?`],
@@ -2439,11 +2718,11 @@ export class CommandParser implements ICommandParser {
     });
 
     this.registerCommand({
-      name: 'delete-item',
-      aliases: ['del-item'],
+      name: 'delete item',
+      aliases: ['del-item', 'delete-item'],
       description: 'Delete an item from the current adventure',
-      syntax: 'delete-item <item-id>',
-      examples: ['delete-item key-123', 'delete-item sword-456'],
+      syntax: 'delete item <item-id>',
+      examples: ['delete item key-123', 'delete item sword-456'],
       mode: GameMode.Admin,
       handler: async (args: string[], context: GameContext) => {
         if (args.length === 0) {
@@ -2466,7 +2745,7 @@ export class CommandParser implements ICommandParser {
             error: {
               code: 'NO_ADVENTURE_SELECTED',
               message: 'No adventure selected',
-              suggestion: 'Use "select-adventure <id>" to select an adventure for editing.'
+              suggestion: 'Use "select adventure <id>" to select an adventure for editing.'
             }
           };
         }
@@ -2496,34 +2775,8 @@ export class CommandParser implements ICommandParser {
           };
         }
 
-        // Check if this is a confirmation call
-        if (context.confirmationPending) {
-          try {
-            this.adminSystem.deleteItem(itemId);
-            
-            return {
-              success: true,
-              output: [
-                `Deleted item: "${foundItem.name}"`,
-                '',
-                'Use "save" to persist your changes.'
-              ],
-              error: undefined
-            };
-          } catch (error) {
-            return {
-              success: false,
-              output: [],
-              error: {
-                code: 'DELETE_ITEM_FAILED',
-                message: error instanceof Error ? error.message : 'Failed to delete item',
-                suggestion: 'Please try again.'
-              }
-            };
-          }
-        }
-
-        // First call - prompt for confirmation
+        // Prompt for confirmation (confirmation flow not yet implemented)
+        // TODO: Implement confirmation mechanism
         return {
           success: true,
           output: ['PROMPT_CONFIRMATION', `Delete item "${foundItem.name}" (${itemId})?`],
@@ -2531,5 +2784,283 @@ export class CommandParser implements ICommandParser {
         };
       }
     });
+
+    // Navigation & Inspection Commands
+    this.registerCommand({
+      name: 'show locations',
+      aliases: [],
+      description: 'Display all locations in selected adventure',
+      syntax: 'show locations',
+      examples: ['show locations'],
+      mode: GameMode.Admin,
+      handler: async (_args: string[]) => {
+        // Validate that an adventure is selected
+        const adventure = this.adminSystem.getCurrentAdventure();
+        
+        if (!adventure) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'NO_ADVENTURE_SELECTED',
+              message: 'No adventure selected',
+              suggestion: 'Use "select adventure <id>" to select an adventure for editing.'
+            }
+          };
+        }
+
+        const output: string[] = [];
+        const locationCount = adventure.locations.size;
+        
+        // Header with count
+        output.push(`Locations in "${adventure.name}" (${locationCount} total):`);
+        output.push('');
+
+        // Iterate through all locations
+        let index = 1;
+        for (const [locationId, location] of adventure.locations) {
+          // Mark starting location
+          const startMarker = locationId === adventure.startLocationId ? ' [START]' : '';
+          output.push(`${index}. ${location.name}${startMarker}`);
+          output.push(`   ID: ${locationId}`);
+          output.push(`   Description: ${location.description}`);
+          
+          // Format exits
+          const exits = location.getExits();
+          if (exits.size > 0) {
+            const exitList: string[] = [];
+            for (const [direction, targetId] of exits) {
+              const targetLocation = adventure.locations.get(targetId);
+              const targetName = targetLocation ? targetLocation.name : 'Unknown';
+              exitList.push(`${direction} → ${targetName}`);
+            }
+            output.push(`   Exits: ${exitList.join(', ')}`);
+          } else {
+            output.push(`   Exits: None`);
+          }
+          
+          output.push('');
+          index++;
+        }
+
+        return {
+          success: true,
+          output,
+          error: undefined
+        };
+      }
+    });
+
+    this.registerCommand({
+      name: 'show characters',
+      aliases: [],
+      description: 'Display characters (filtered by selected location)',
+      syntax: 'show characters',
+      examples: ['show characters'],
+      mode: GameMode.Admin,
+      handler: async (_args: string[]) => {
+        // Validate that an adventure is selected
+        const adventure = this.adminSystem.getCurrentAdventure();
+        
+        if (!adventure) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'NO_ADVENTURE_SELECTED',
+              message: 'No adventure selected',
+              suggestion: 'Use "select adventure <id>" to select an adventure for editing.'
+            }
+          };
+        }
+
+        // Check if a location is selected
+        const selectedLocationId = this.adminSystem.getCurrentLocationId();
+        const output: string[] = [];
+        let characters: Character[] = [];
+        let contextName = '';
+        
+        if (selectedLocationId) {
+          // Filter characters to only the selected location
+          const selectedLocation = adventure.locations.get(selectedLocationId);
+          if (selectedLocation) {
+            characters = selectedLocation.getCharacters();
+            contextName = selectedLocation.name;
+            output.push(`Characters in "${contextName}" (${characters.length} total):`);
+          }
+        } else {
+          // Show all characters from all locations in the adventure
+          contextName = adventure.name;
+          for (const [, location] of adventure.locations) {
+            characters.push(...location.getCharacters());
+          }
+          output.push(`Characters in "${contextName}" (${characters.length} total):`);
+        }
+        
+        output.push('');
+
+        // If no characters found
+        if (characters.length === 0) {
+          output.push('No characters found.');
+          return {
+            success: true,
+            output,
+            error: undefined
+          };
+        }
+
+        // Format character list
+        const showLocation = !selectedLocationId; // Show location if no specific location selected
+        const formattedList = this.formatCharacterList(characters, adventure, showLocation);
+        output.push(...formattedList);
+
+        return {
+          success: true,
+          output,
+          error: undefined
+        };
+      }
+    });
+
+    this.registerCommand({
+      name: 'show items',
+      aliases: [],
+      description: 'Display items (filtered by selected location)',
+      syntax: 'show items',
+      examples: ['show items'],
+      mode: GameMode.Admin,
+      handler: async (_args: string[]) => {
+        // Validate that an adventure is selected
+        const adventure = this.adminSystem.getCurrentAdventure();
+        
+        if (!adventure) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'NO_ADVENTURE_SELECTED',
+              message: 'No adventure selected',
+              suggestion: 'Use "select adventure <id>" to select an adventure for editing.'
+            }
+          };
+        }
+
+        // Check if a location is selected
+        const selectedLocationId = this.adminSystem.getCurrentLocationId();
+        const output: string[] = [];
+        let items: Item[] = [];
+        let contextName = '';
+        
+        if (selectedLocationId) {
+          // Filter items to only the selected location
+          const selectedLocation = adventure.locations.get(selectedLocationId);
+          if (selectedLocation) {
+            items = selectedLocation.getItems();
+            contextName = selectedLocation.name;
+            output.push(`Items in "${contextName}" (${items.length} total):`);
+          }
+        } else {
+          // Show all items from all locations in the adventure
+          contextName = adventure.name;
+          for (const [, location] of adventure.locations) {
+            items.push(...location.getItems());
+          }
+          output.push(`Items in "${contextName}" (${items.length} total):`);
+        }
+        
+        output.push('');
+
+        // If no items found
+        if (items.length === 0) {
+          output.push('No items found.');
+          return {
+            success: true,
+            output,
+            error: undefined
+          };
+        }
+
+        // Format item list
+        const showLocation = !selectedLocationId; // Show location if no specific location selected
+        const formattedList = this.formatItemList(items, adventure, showLocation);
+        output.push(...formattedList);
+
+        return {
+          success: true,
+          output,
+          error: undefined
+        };
+      }
+    });
+
+    this.registerCommand({
+      name: 'select location',
+      aliases: [],
+      description: 'Select a location to view details and set context',
+      syntax: 'select location <id|name>',
+      examples: ['select location entrance-123', 'select location "Temple Entrance"'],
+      mode: GameMode.Admin,
+      handler: async (args: string[]) => {
+        // Validate that an adventure is selected
+        const adventure = this.adminSystem.getCurrentAdventure();
+        
+        if (!adventure) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'NO_ADVENTURE_SELECTED',
+              message: 'No adventure selected',
+              suggestion: 'Use "select adventure <id>" to select an adventure for editing.'
+            }
+          };
+        }
+
+        // Validate that identifier argument is provided
+        if (args.length === 0) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'MISSING_ARGUMENT',
+              message: 'Location identifier required',
+              suggestion: 'Usage: select location <id|name>. Use "show locations" to see available locations.'
+            }
+          };
+        }
+
+        // Use findLocationByIdOrName helper to locate the location
+        const identifier = args.join(' ');
+        const location = this.findLocationByIdOrName(identifier, adventure);
+        
+        // Return error if location not found
+        if (!location) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'LOCATION_NOT_FOUND',
+              message: `Location not found: ${identifier}`,
+              suggestion: 'Use "show locations" to see available locations.'
+            }
+          };
+        }
+
+        // Call adminSystem.setCurrentLocation to update admin context
+        this.adminSystem.setCurrentLocation(location.id);
+
+        // Format and display detailed location information
+        const output = this.formatLocationDetails(location, adventure);
+
+        return {
+          success: true,
+          output,
+          error: undefined
+        };
+      }
+    });
+
+
   }
 }
+

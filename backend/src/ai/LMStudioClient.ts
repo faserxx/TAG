@@ -95,7 +95,7 @@ export class LMStudioClient {
       }
       
       
-      const data = await response.json(); 
+      const data = await response.json() as any; 
       
       if (!data.choices || data.choices.length === 0) {
         throw new Error('No response generated');
@@ -127,7 +127,7 @@ export class LMStudioClient {
     
     prompt += ' Respond in character, keeping your responses concise and engaging. Stay true to your personality and the game world.';
     prompt += ' Do not use markdown formatting, bullet points, or special characters. Speak naturally in plain text.';
-    prompt += ' This is a CHAT interaction, answers must be short and colloquial.';
+    prompt += ' This is a CHAT interaction, answers must be short and colloquial. One short sentence, maximum two short sentences.';
     
     return prompt;
   }

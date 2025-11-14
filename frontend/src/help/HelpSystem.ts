@@ -76,7 +76,8 @@ export class HelpSystem implements IHelpSystem {
       return null;
     }
 
-    return this.helpPages.get(commandName) || null;
+    // Use the command's actual name to look up the help page (handles aliases)
+    return this.helpPages.get(command.name) || null;
   }
 
   /**
@@ -331,47 +332,56 @@ for regular NPCs with scripted dialogue.`,
     });
 
     // Admin mode commands
-    this.helpPages.set('create-adventure', {
-      name: 'create-adventure',
-      synopsis: 'create-adventure <name>',
+    this.helpPages.set('create adventure', {
+      name: 'create adventure',
+      synopsis: 'create adventure <name>',
       description: `Create a new adventure with the specified name.
 This initializes a new adventure definition that you can populate with
 locations, characters, and connections. The adventure is not saved until
-you use the "save" command.`,
+you use the "save" command.
+
+Aliases: create, create-adventure (deprecated)`,
       options: [],
       examples: [
-        { command: 'create-adventure "The Lost Temple"', description: 'Create an adventure with a multi-word name' },
-        { command: 'create MyAdventure', description: 'Create an adventure with a single-word name' }
+        { command: 'create adventure "The Lost Temple"', description: 'Create an adventure with a multi-word name' },
+        { command: 'create MyAdventure', description: 'Using the short alias' },
+        { command: 'create-adventure MyAdventure', description: 'Using the deprecated hyphenated alias' }
       ],
-      seeAlso: ['add-location', 'save']
+      seeAlso: ['add location', 'save adventure']
     });
 
-    this.helpPages.set('add-location', {
-      name: 'add-location',
-      synopsis: 'add-location <name>',
+    this.helpPages.set('add location', {
+      name: 'add location',
+      synopsis: 'add location <name>',
       description: `Add a new location to the current adventure.
 After creating a location, you will be prompted to provide a description.
-Locations can be connected using the "connect" command.`,
+Locations can be connected using the "connect" command.
+
+Aliases: addloc, add-location (deprecated)`,
       options: [],
       examples: [
-        { command: 'add-location "Temple Entrance"', description: 'Add a location with a multi-word name' },
-        { command: 'add-location Hall', description: 'Add a location with a single-word name' }
+        { command: 'add location "Temple Entrance"', description: 'Add a location with a multi-word name' },
+        { command: 'addloc Hall', description: 'Using the short alias' },
+        { command: 'add-location Hall', description: 'Using the deprecated hyphenated alias' }
       ],
-      seeAlso: ['create-adventure', 'connect', 'add-character']
+      seeAlso: ['create adventure', 'connect', 'add character']
     });
 
-    this.helpPages.set('add-character', {
-      name: 'add-character',
-      synopsis: 'add-character <name>',
+    this.helpPages.set('add character', {
+      name: 'add character',
+      synopsis: 'add character <name>',
       description: `Add a character to the current location.
 After creating a character, you will be prompted to provide dialogue lines.
-Characters can have multiple dialogue lines that cycle when talked to.`,
+Characters can have multiple dialogue lines that cycle when talked to.
+
+Aliases: addchar, add-character (deprecated)`,
       options: [],
       examples: [
-        { command: 'add-character "Temple Guard"', description: 'Add a character with a multi-word name' },
-        { command: 'add-character Merchant', description: 'Add a character with a single-word name' }
+        { command: 'add character "Temple Guard"', description: 'Add a character with a multi-word name' },
+        { command: 'addchar Merchant', description: 'Using the short alias' },
+        { command: 'add-character Merchant', description: 'Using the deprecated hyphenated alias' }
       ],
-      seeAlso: ['add-location', 'talk']
+      seeAlso: ['add location', 'talk']
     });
 
     this.helpPages.set('connect', {
@@ -386,35 +396,163 @@ twice with reversed from/to and opposite directions.`,
         { command: 'connect entrance hall north', description: 'Connect entrance to hall going north' },
         { command: 'connect hall entrance south', description: 'Create the reverse connection' }
       ],
-      seeAlso: ['add-location', 'move']
+      seeAlso: ['add location', 'move']
     });
 
-    this.helpPages.set('save', {
-      name: 'save',
-      synopsis: 'save',
+    this.helpPages.set('save adventure', {
+      name: 'save adventure',
+      synopsis: 'save adventure',
       description: `Save the current adventure to the database.
 Validates the adventure for completeness before saving. All locations
 must be reachable from the starting location, and the adventure must
-have at least one location defined.`,
+have at least one location defined.
+
+Aliases: save, save-adventure (deprecated)`,
       options: [],
       examples: [
-        { command: 'save', description: 'Save the current adventure' }
+        { command: 'save adventure', description: 'Save the current adventure' },
+        { command: 'save', description: 'Using the short alias' },
+        { command: 'save-adventure', description: 'Using the deprecated hyphenated alias' }
       ],
-      seeAlso: ['create-adventure', 'list-adventures']
+      seeAlso: ['create adventure', 'list adventures']
     });
 
-    this.helpPages.set('list-adventures', {
-      name: 'list-adventures',
-      synopsis: 'list-adventures',
+    this.helpPages.set('list adventures', {
+      name: 'list adventures',
+      synopsis: 'list adventures',
       description: `Display a list of all saved adventures.
 Shows the adventure name, ID, and creation date for each adventure
-stored in the database.`,
+stored in the database.
+
+Aliases: list, ls, list-adventures (deprecated)`,
       options: [],
       examples: [
-        { command: 'list-adventures', description: 'Show all adventures' },
-        { command: 'list', description: 'Using the short alias' }
+        { command: 'list adventures', description: 'Show all adventures' },
+        { command: 'list', description: 'Using the short alias' },
+        { command: 'list-adventures', description: 'Using the deprecated hyphenated alias' }
       ],
-      seeAlso: ['create-adventure', 'save']
+      seeAlso: ['create adventure', 'save adventure']
+    });
+
+    // Navigation & Inspection commands
+    this.helpPages.set('show locations', {
+      name: 'show locations',
+      synopsis: 'show locations',
+      description: `Display all locations in the selected adventure.
+Shows a formatted list with each location's ID, name, description, and exits.
+The starting location is marked with [START]. This command provides a
+comprehensive overview of all places in the adventure.
+
+Note: You must have an adventure selected using "select adventure" before
+using this command.`,
+      options: [],
+      examples: [
+        { command: 'show locations', description: 'Display all locations in the selected adventure' }
+      ],
+      seeAlso: ['select location', 'show characters', 'show items', 'map']
+    });
+
+    this.helpPages.set('show characters', {
+      name: 'show characters',
+      synopsis: 'show characters',
+      description: `Display characters based on your current context.
+This command is context-aware:
+  - If you have selected a location: Shows only characters in that location
+  - If you have only selected an adventure: Shows all characters in the adventure
+
+Each character entry displays the ID, name, location name, dialogue preview,
+and personality preview for AI-powered characters. AI characters are marked
+with [AI].
+
+Note: You must have an adventure selected using "select adventure" before
+using this command. Use "select location" to filter results to a specific
+location.`,
+      options: [],
+      examples: [
+        { command: 'show characters', description: 'Display characters in current context' },
+        { command: 'select location entrance', description: 'First select a location to filter results' },
+        { command: 'show characters', description: 'Now shows only characters in the entrance' }
+      ],
+      seeAlso: ['select location', 'show locations', 'show items']
+    });
+
+    this.helpPages.set('show items', {
+      name: 'show items',
+      synopsis: 'show items',
+      description: `Display items based on your current context.
+This command is context-aware:
+  - If you have selected a location: Shows only items in that location
+  - If you have only selected an adventure: Shows all items in the adventure
+
+Each item entry displays the ID, name, location name, and description.
+
+Note: You must have an adventure selected using "select adventure" before
+using this command. Use "select location" to filter results to a specific
+location.`,
+      options: [],
+      examples: [
+        { command: 'show items', description: 'Display items in current context' },
+        { command: 'select location hall', description: 'First select a location to filter results' },
+        { command: 'show items', description: 'Now shows only items in the hall' }
+      ],
+      seeAlso: ['select location', 'show locations', 'show characters']
+    });
+
+    this.helpPages.set('select location', {
+      name: 'select location',
+      synopsis: 'select location <id|name>',
+      description: `Select a specific location to view details and set it as your current context.
+You can identify the location by either its ID (number) or name (string).
+Location name matching is case-insensitive.
+
+Once a location is selected, the "show characters" and "show items" commands
+will automatically filter their results to only that location. The selected
+location is also highlighted in the "map" command output.
+
+The command displays detailed information about the selected location including:
+  - Location name, ID, and description
+  - All exits with direction and destination names
+  - Characters present with dialogue previews
+  - Items present with descriptions
+
+Note: You must have an adventure selected using "select adventure" before
+using this command.`,
+      options: [],
+      examples: [
+        { command: 'select location 1', description: 'Select location by ID' },
+        { command: 'select location entrance', description: 'Select location by name' },
+        { command: 'select location "Temple Entrance"', description: 'Select location with multi-word name' }
+      ],
+      seeAlso: ['show locations', 'show characters', 'show items', 'map']
+    });
+
+    this.helpPages.set('map', {
+      name: 'map',
+      synopsis: 'map',
+      description: `Display a complete visual map of the selected adventure.
+In admin mode, the map shows ALL locations and their connections, not just
+visited locations. This provides a comprehensive overview of the entire
+adventure structure.
+
+The map displays:
+  - All locations with their names and IDs
+  - Directional connections between locations (north, south, east, west, up, down)
+  - The currently selected location marked with [*]
+  - Visual grouping of connected locations
+
+This is useful for understanding the spatial layout of your adventure and
+verifying that all locations are properly connected.
+
+Note: In player mode, the map only shows visited locations. In admin mode,
+you must have an adventure selected using "select adventure" before using
+this command.`,
+      options: [],
+      examples: [
+        { command: 'map', description: 'Display the complete adventure map' },
+        { command: 'select location entrance', description: 'Select a location first' },
+        { command: 'map', description: 'The selected location will be highlighted' }
+      ],
+      seeAlso: ['show locations', 'select location']
     });
   }
 }

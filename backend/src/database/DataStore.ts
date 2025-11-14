@@ -66,7 +66,14 @@ export class DataStore {
           [adventure.name, adventure.description, adventure.startLocationId, now, adventure.id]
         );
 
-        // Delete existing locations, exits, and characters (cascade will handle related data)
+        // Delete existing locations, exits, and characters
+        // First delete characters (to avoid foreign key issues)
+        this.db.run(`DELETE FROM characters WHERE location_id IN 
+          (SELECT id FROM locations WHERE adventure_id = ?)`, [adventure.id]);
+        // Then delete location exits
+        this.db.run(`DELETE FROM location_exits WHERE from_location_id IN 
+          (SELECT id FROM locations WHERE adventure_id = ?)`, [adventure.id]);
+        // Finally delete locations
         this.db.run('DELETE FROM locations WHERE adventure_id = ?', [adventure.id]);
       } else {
         // Insert new adventure

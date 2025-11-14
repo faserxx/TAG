@@ -81,8 +81,8 @@ describe('CommandParser', () => {
     it('should return admin mode commands', () => {
       const commands = parser.getAvailableCommands(GameMode.Admin);
       const commandNames = commands.map(cmd => cmd.name);
-      expect(commandNames).toContain('create-adventure');
-      expect(commandNames).toContain('add-location');
+      expect(commandNames).toContain('create adventure');
+      expect(commandNames).toContain('add location');
       expect(commandNames).toContain('help');
     });
   });
@@ -515,23 +515,23 @@ describe('CommandParser - Adventure Selection Commands', () => {
     };
   });
 
-  describe('select-adventure command', () => {
-    it('should register select-adventure command with aliases', () => {
+  describe('select adventure command', () => {
+    it('should register select adventure command with aliases', () => {
       const commands = parser.getAvailableCommands(GameMode.Admin);
-      const selectCommand = commands.find(cmd => cmd.name === 'select-adventure');
+      const selectCommand = commands.find(cmd => cmd.name === 'select adventure');
       expect(selectCommand).toBeDefined();
       expect(selectCommand?.aliases).toContain('select');
     });
 
-    it('should parse select-adventure command', () => {
-      const result = parser.parse('select-adventure demo-adventure');
+    it('should parse select adventure command', () => {
+      const result = parser.parse('select adventure demo-adventure');
       expect(result.isValid).toBe(true);
-      expect(result.command).toBe('select-adventure');
+      expect(result.command).toBe('select adventure');
       expect(result.args).toEqual(['demo-adventure']);
     });
 
     it('should fail when no adventure ID provided', async () => {
-      const parsed = parser.parse('select-adventure');
+      const parsed = parser.parse('select adventure');
       const result = await parser.executeCommand(parsed, context);
       
       expect(result.success).toBe(false);
@@ -540,50 +540,50 @@ describe('CommandParser - Adventure Selection Commands', () => {
     });
   });
 
-  describe('show-adventure command', () => {
-    it('should register show-adventure command with aliases', () => {
+  describe('show adventure command', () => {
+    it('should register show adventure command with aliases', () => {
       const commands = parser.getAvailableCommands(GameMode.Admin);
-      const showCommand = commands.find(cmd => cmd.name === 'show-adventure');
+      const showCommand = commands.find(cmd => cmd.name === 'show adventure');
       expect(showCommand).toBeDefined();
       expect(showCommand?.aliases).toContain('show');
       expect(showCommand?.aliases).toContain('view-adventure');
     });
 
-    it('should parse show-adventure command', () => {
-      const result = parser.parse('show-adventure');
+    it('should parse show adventure command', () => {
+      const result = parser.parse('show adventure');
       expect(result.isValid).toBe(true);
-      expect(result.command).toBe('show-adventure');
+      expect(result.command).toBe('show adventure');
       expect(result.args).toEqual([]);
     });
 
     it('should fail when no adventure is selected', async () => {
-      const parsed = parser.parse('show-adventure');
+      const parsed = parser.parse('show adventure');
       const result = await parser.executeCommand(parsed, context);
       
       expect(result.success).toBe(false);
       expect(result.error?.code).toBe('NO_ADVENTURE_SELECTED');
       expect(result.error?.message).toContain('No adventure selected');
-      expect(result.error?.suggestion).toContain('select-adventure');
+      expect(result.error?.suggestion).toContain('select adventure');
     });
   });
 
-  describe('deselect-adventure command', () => {
-    it('should register deselect-adventure command with aliases', () => {
+  describe('deselect adventure command', () => {
+    it('should register deselect adventure command with aliases', () => {
       const commands = parser.getAvailableCommands(GameMode.Admin);
-      const deselectCommand = commands.find(cmd => cmd.name === 'deselect-adventure');
+      const deselectCommand = commands.find(cmd => cmd.name === 'deselect adventure');
       expect(deselectCommand).toBeDefined();
       expect(deselectCommand?.aliases).toContain('deselect');
     });
 
-    it('should parse deselect-adventure command', () => {
-      const result = parser.parse('deselect-adventure');
+    it('should parse deselect adventure command', () => {
+      const result = parser.parse('deselect adventure');
       expect(result.isValid).toBe(true);
-      expect(result.command).toBe('deselect-adventure');
+      expect(result.command).toBe('deselect adventure');
       expect(result.args).toEqual([]);
     });
 
     it('should fail when no adventure is selected', async () => {
-      const parsed = parser.parse('deselect-adventure');
+      const parsed = parser.parse('deselect adventure');
       const result = await parser.executeCommand(parsed, context);
       
       expect(result.success).toBe(false);
@@ -605,23 +605,23 @@ describe('CommandParser - Adventure Editing Commands', () => {
     };
   });
 
-  describe('edit-title command', () => {
-    it('should register edit-title command', () => {
+  describe('edit title command', () => {
+    it('should register edit title command', () => {
       const commands = parser.getAvailableCommands(GameMode.Admin);
-      const editTitleCommand = commands.find(cmd => cmd.name === 'edit-title');
+      const editTitleCommand = commands.find(cmd => cmd.name === 'edit title');
       expect(editTitleCommand).toBeDefined();
       expect(editTitleCommand?.mode).toBe(GameMode.Admin);
     });
 
-    it('should parse edit-title command', () => {
-      const result = parser.parse('edit-title "New Adventure Title"');
+    it('should parse edit title command', () => {
+      const result = parser.parse('edit title "New Adventure Title"');
       expect(result.isValid).toBe(true);
-      expect(result.command).toBe('edit-title');
+      expect(result.command).toBe('edit title');
       expect(result.args).toEqual(['New Adventure Title']);
     });
 
     it('should fail when no title provided', async () => {
-      const parsed = parser.parse('edit-title');
+      const parsed = parser.parse('edit title');
       const result = await parser.executeCommand(parsed, context);
       
       expect(result.success).toBe(false);
@@ -630,7 +630,7 @@ describe('CommandParser - Adventure Editing Commands', () => {
     });
 
     it('should fail when no adventure is selected', async () => {
-      const parsed = parser.parse('edit-title "New Title"');
+      const parsed = parser.parse('edit title "New Title"');
       const result = await parser.executeCommand(parsed, context);
       
       expect(result.success).toBe(false);
@@ -639,23 +639,23 @@ describe('CommandParser - Adventure Editing Commands', () => {
     });
   });
 
-  describe('edit-description command', () => {
-    it('should register edit-description command', () => {
+  describe('edit description command', () => {
+    it('should register edit description command', () => {
       const commands = parser.getAvailableCommands(GameMode.Admin);
-      const editDescCommand = commands.find(cmd => cmd.name === 'edit-description');
+      const editDescCommand = commands.find(cmd => cmd.name === 'edit description');
       expect(editDescCommand).toBeDefined();
       expect(editDescCommand?.mode).toBe(GameMode.Admin);
     });
 
-    it('should parse edit-description command', () => {
-      const result = parser.parse('edit-description "A new description"');
+    it('should parse edit description command', () => {
+      const result = parser.parse('edit description "A new description"');
       expect(result.isValid).toBe(true);
-      expect(result.command).toBe('edit-description');
+      expect(result.command).toBe('edit description');
       expect(result.args).toEqual(['A new description']);
     });
 
     it('should fail when no adventure is selected', async () => {
-      const parsed = parser.parse('edit-description "New description"');
+      const parsed = parser.parse('edit description "New description"');
       const result = await parser.executeCommand(parsed, context);
       
       expect(result.success).toBe(false);
@@ -664,7 +664,7 @@ describe('CommandParser - Adventure Editing Commands', () => {
     });
 
     it('should allow empty description', async () => {
-      const parsed = parser.parse('edit-description');
+      const parsed = parser.parse('edit description');
       const result = await parser.executeCommand(parsed, context);
       
       // Should fail because no adventure selected, not because of empty description
@@ -673,30 +673,30 @@ describe('CommandParser - Adventure Editing Commands', () => {
     });
   });
 
-  describe('edit-location command', () => {
-    it('should register edit-location command', () => {
+  describe('edit location command', () => {
+    it('should register edit location command', () => {
       const commands = parser.getAvailableCommands(GameMode.Admin);
-      const editLocCommand = commands.find(cmd => cmd.name === 'edit-location');
+      const editLocCommand = commands.find(cmd => cmd.name === 'edit location');
       expect(editLocCommand).toBeDefined();
       expect(editLocCommand?.mode).toBe(GameMode.Admin);
     });
 
-    it('should parse edit-location command with name property', () => {
-      const result = parser.parse('edit-location loc-123 name "New Location Name"');
+    it('should parse edit location command with name property', () => {
+      const result = parser.parse('edit location loc-123 name "New Location Name"');
       expect(result.isValid).toBe(true);
-      expect(result.command).toBe('edit-location');
+      expect(result.command).toBe('edit location');
       expect(result.args).toEqual(['loc-123', 'name', 'New Location Name']);
     });
 
-    it('should parse edit-location command with description property', () => {
-      const result = parser.parse('edit-location loc-123 description "A new description"');
+    it('should parse edit location command with description property', () => {
+      const result = parser.parse('edit location loc-123 description "A new description"');
       expect(result.isValid).toBe(true);
-      expect(result.command).toBe('edit-location');
+      expect(result.command).toBe('edit location');
       expect(result.args).toEqual(['loc-123', 'description', 'A new description']);
     });
 
     it('should fail when insufficient arguments provided', async () => {
-      const parsed = parser.parse('edit-location loc-123');
+      const parsed = parser.parse('edit location loc-123');
       const result = await parser.executeCommand(parsed, context);
       
       expect(result.success).toBe(false);
@@ -705,7 +705,7 @@ describe('CommandParser - Adventure Editing Commands', () => {
     });
 
     it('should fail when no adventure is selected', async () => {
-      const parsed = parser.parse('edit-location loc-123 name "New Name"');
+      const parsed = parser.parse('edit location loc-123 name "New Name"');
       const result = await parser.executeCommand(parsed, context);
       
       expect(result.success).toBe(false);
@@ -715,10 +715,10 @@ describe('CommandParser - Adventure Editing Commands', () => {
 
     it('should fail when invalid property specified', async () => {
       // First create an adventure to get past the no-adventure check
-      const createParsed = parser.parse('create-adventure "Test Adventure"');
+      const createParsed = parser.parse('create adventure "Test Adventure"');
       await parser.executeCommand(createParsed, context);
 
-      const parsed = parser.parse('edit-location loc-123 invalid-property "value"');
+      const parsed = parser.parse('edit location loc-123 invalid-property "value"');
       const result = await parser.executeCommand(parsed, context);
       
       expect(result.success).toBe(false);
@@ -728,31 +728,31 @@ describe('CommandParser - Adventure Editing Commands', () => {
     });
   });
 
-  describe('remove-connection command', () => {
-    it('should register remove-connection command with aliases', () => {
+  describe('remove connection command', () => {
+    it('should register remove connection command with aliases', () => {
       const commands = parser.getAvailableCommands(GameMode.Admin);
-      const removeConnCommand = commands.find(cmd => cmd.name === 'remove-connection');
+      const removeConnCommand = commands.find(cmd => cmd.name === 'remove connection');
       expect(removeConnCommand).toBeDefined();
       expect(removeConnCommand?.aliases).toContain('remove-exit');
       expect(removeConnCommand?.mode).toBe(GameMode.Admin);
     });
 
-    it('should parse remove-connection command', () => {
-      const result = parser.parse('remove-connection loc-123 north');
+    it('should parse remove connection command', () => {
+      const result = parser.parse('remove connection loc-123 north');
       expect(result.isValid).toBe(true);
-      expect(result.command).toBe('remove-connection');
+      expect(result.command).toBe('remove connection');
       expect(result.args).toEqual(['loc-123', 'north']);
     });
 
-    it('should parse remove-connection command using alias', () => {
+    it('should parse remove connection command using alias', () => {
       const result = parser.parse('remove-exit loc-123 south');
       expect(result.isValid).toBe(true);
-      expect(result.command).toBe('remove-connection');
+      expect(result.command).toBe('remove connection');
       expect(result.args).toEqual(['loc-123', 'south']);
     });
 
     it('should fail when insufficient arguments provided', async () => {
-      const parsed = parser.parse('remove-connection loc-123');
+      const parsed = parser.parse('remove connection loc-123');
       const result = await parser.executeCommand(parsed, context);
       
       expect(result.success).toBe(false);
@@ -761,7 +761,7 @@ describe('CommandParser - Adventure Editing Commands', () => {
     });
 
     it('should fail when no adventure is selected', async () => {
-      const parsed = parser.parse('remove-connection loc-123 north');
+      const parsed = parser.parse('remove connection loc-123 north');
       const result = await parser.executeCommand(parsed, context);
       
       expect(result.success).toBe(false);
@@ -992,16 +992,16 @@ describe('CommandParser - Tab Autocomplete', () => {
     });
 
     it('should complete single matching command', () => {
-      const result = parser.getAutocomplete('create-adv', 10, context);
-      expect(result.suggestions).toContain('create-adventure');
-      expect(result.completionText).toBe('create-adventure');
+      const result = parser.getAutocomplete('create adv', 10, context);
+      expect(result.suggestions).toContain('create adventure');
+      expect(result.completionText).toBe('create adventure');
     });
 
     it('should return multiple matching commands', () => {
       const result = parser.getAutocomplete('ed', 2, context);
-      expect(result.suggestions).toContain('edit-title');
-      expect(result.suggestions).toContain('edit-description');
-      expect(result.suggestions).toContain('edit-location');
+      expect(result.suggestions).toContain('edit title');
+      expect(result.suggestions).toContain('edit description');
+      expect(result.suggestions).toContain('edit location');
       expect(result.completionText).toBeUndefined();
     });
 
@@ -1012,7 +1012,7 @@ describe('CommandParser - Tab Autocomplete', () => {
       };
       const result = parser.getAutocomplete('mov', 3, playerContext);
       expect(result.suggestions).toContain('move');
-      expect(result.suggestions).not.toContain('create-adventure');
+      expect(result.suggestions).not.toContain('create adventure');
     });
 
     it('should include command aliases in suggestions', () => {
@@ -1020,21 +1020,92 @@ describe('CommandParser - Tab Autocomplete', () => {
       expect(result.suggestions).toContain('help');
       expect(result.suggestions).toContain('history');
     });
+
+    it('should prioritize space-separated names over hyphenated aliases', () => {
+      const result = parser.getAutocomplete('create', 6, context);
+      expect(result.suggestions.length).toBeGreaterThan(0);
+      
+      // Find indices of space-separated and hyphenated versions
+      const spaceIndex = result.suggestions.indexOf('create adventure');
+      const hyphenIndex = result.suggestions.indexOf('create-adventure');
+      
+      // Both should be present
+      expect(spaceIndex).toBeGreaterThanOrEqual(0);
+      expect(hyphenIndex).toBeGreaterThanOrEqual(0);
+      
+      // Space-separated should come before hyphenated
+      expect(spaceIndex).toBeLessThan(hyphenIndex);
+    });
+
+    it('should prioritize "add location" over "add-location" alias', () => {
+      const result = parser.getAutocomplete('add', 3, context);
+      
+      const spaceIndex = result.suggestions.indexOf('add location');
+      const hyphenIndex = result.suggestions.indexOf('add-location');
+      
+      expect(spaceIndex).toBeGreaterThanOrEqual(0);
+      expect(hyphenIndex).toBeGreaterThanOrEqual(0);
+      expect(spaceIndex).toBeLessThan(hyphenIndex);
+    });
+
+    it('should prioritize "select adventure" over "select-adventure" alias', () => {
+      const result = parser.getAutocomplete('select', 6, context);
+      
+      const spaceIndex = result.suggestions.indexOf('select adventure');
+      const hyphenIndex = result.suggestions.indexOf('select-adventure');
+      
+      expect(spaceIndex).toBeGreaterThanOrEqual(0);
+      expect(hyphenIndex).toBeGreaterThanOrEqual(0);
+      expect(spaceIndex).toBeLessThan(hyphenIndex);
+    });
+
+    it('should prioritize "edit title" over "edit-title" alias', () => {
+      const result = parser.getAutocomplete('edit t', 6, context);
+      
+      const spaceIndex = result.suggestions.indexOf('edit title');
+      const hyphenIndex = result.suggestions.indexOf('edit-title');
+      
+      expect(spaceIndex).toBeGreaterThanOrEqual(0);
+      expect(hyphenIndex).toBeGreaterThanOrEqual(0);
+      expect(spaceIndex).toBeLessThan(hyphenIndex);
+    });
+
+    it('should still allow completion of hyphenated aliases', () => {
+      const result = parser.getAutocomplete('create-', 7, context);
+      expect(result.suggestions).toContain('create-adventure');
+      expect(result.suggestions).toContain('create-ai-character');
+    });
+
+    it('should complete hyphenated alias when typed explicitly', () => {
+      const result = parser.getAutocomplete('add-loc', 7, context);
+      expect(result.suggestions).toContain('add-location');
+    });
+
+    it('should prioritize space-separated for partial multi-word commands', () => {
+      const result = parser.getAutocomplete('remove', 6, context);
+      
+      const spaceIndex = result.suggestions.indexOf('remove connection');
+      const hyphenIndex = result.suggestions.indexOf('remove-connection');
+      
+      expect(spaceIndex).toBeGreaterThanOrEqual(0);
+      expect(hyphenIndex).toBeGreaterThanOrEqual(0);
+      expect(spaceIndex).toBeLessThan(hyphenIndex);
+    });
   });
 
   describe('getAutocomplete - location ID completion', () => {
     beforeEach(() => {
       // Create an adventure with locations
-      const createParsed = parser.parse('create-adventure "Test Adventure"');
+      const createParsed = parser.parse('create adventure "Test Adventure"');
       parser.executeCommand(createParsed, context);
       
       // Add some locations
-      parser.parse('add-location "Entrance" "The entrance"');
-      parser.executeCommand(parser.parse('add-location "Entrance" "The entrance"'), context);
-      parser.parse('add-location "Hall" "A grand hall"');
-      parser.executeCommand(parser.parse('add-location "Hall" "A grand hall"'), context);
-      parser.parse('add-location "Chamber" "A secret chamber"');
-      parser.executeCommand(parser.parse('add-location "Chamber" "A secret chamber"'), context);
+      parser.parse('add location "Entrance" "The entrance"');
+      parser.executeCommand(parser.parse('add location "Entrance" "The entrance"'), context);
+      parser.parse('add location "Hall" "A grand hall"');
+      parser.executeCommand(parser.parse('add location "Hall" "A grand hall"'), context);
+      parser.parse('add location "Chamber" "A secret chamber"');
+      parser.executeCommand(parser.parse('add location "Chamber" "A secret chamber"'), context);
     });
 
     it('should return empty suggestions when no adventure selected', () => {
@@ -1052,8 +1123,8 @@ describe('CommandParser - Tab Autocomplete', () => {
       expect(result.suggestions).toEqual([]);
     });
 
-    it('should suggest all location IDs for edit-location command', () => {
-      const result = parser.getAutocomplete('edit-location ', 14, context);
+    it('should suggest all location IDs for edit location command', () => {
+      const result = parser.getAutocomplete('edit location ', 14, context);
       expect(result.suggestions.length).toBeGreaterThan(0);
       // All suggestions should be location IDs
       result.suggestions.forEach(suggestion => {
@@ -1062,7 +1133,7 @@ describe('CommandParser - Tab Autocomplete', () => {
     });
 
     it('should filter location IDs based on partial input', () => {
-      const result = parser.getAutocomplete('edit-location entr', 18, context);
+      const result = parser.getAutocomplete('edit location entr', 18, context);
       const matchingIds = result.suggestions.filter(id => 
         id.toLowerCase().startsWith('entr')
       );
@@ -1072,59 +1143,59 @@ describe('CommandParser - Tab Autocomplete', () => {
     it('should complete single matching location ID', () => {
       // Get the actual location IDs from the adventure
       const adventure = (parser as any).adminSystem.getCurrentAdventure();
-      const locationIds = Array.from(adventure.locations.keys());
+      const locationIds = Array.from(adventure.locations.keys()) as string[];
       
       // Use a unique prefix that matches only one location
       const uniquePrefix = locationIds[0].substring(0, 10);
-      const result = parser.getAutocomplete(`edit-location ${uniquePrefix}`, 14 + uniquePrefix.length, context);
+      const result = parser.getAutocomplete(`edit location ${uniquePrefix}`, 14 + uniquePrefix.length, context);
       
       if (result.suggestions.length === 1) {
         expect(result.completionText).toBe(result.suggestions[0]);
       }
     });
 
-    it('should suggest location IDs for remove-connection command', () => {
-      const result = parser.getAutocomplete('remove-connection ', 18, context);
+    it('should suggest location IDs for remove connection command', () => {
+      const result = parser.getAutocomplete('remove connection ', 18, context);
       expect(result.suggestions.length).toBeGreaterThan(0);
     });
 
-    it('should suggest location IDs for delete-location command', () => {
-      const result = parser.getAutocomplete('delete-location ', 16, context);
+    it('should suggest location IDs for delete location command', () => {
+      const result = parser.getAutocomplete('delete location ', 16, context);
       expect(result.suggestions.length).toBeGreaterThan(0);
     });
 
     it('should not suggest location IDs for non-location commands', () => {
-      const result = parser.getAutocomplete('edit-title ', 11, context);
+      const result = parser.getAutocomplete('edit title ', 11, context);
       expect(result.suggestions).toEqual([]);
     });
 
     it('should handle cursor position in middle of input', () => {
-      const result = parser.getAutocomplete('edit-location entrance name "New"', 18, context);
+      const result = parser.getAutocomplete('edit location entrance name "New"', 18, context);
       // Should suggest location IDs based on "entrance" prefix
       expect(result.suggestions.length).toBeGreaterThanOrEqual(0);
     });
 
     it('should handle partial token at cursor', () => {
-      const result = parser.getAutocomplete('edit-location ent', 17, context);
+      const result = parser.getAutocomplete('edit location ent', 17, context);
       const matchingIds = result.suggestions.filter(id => 
         id.toLowerCase().startsWith('ent')
       );
       expect(matchingIds.length).toBeGreaterThanOrEqual(0);
     });
 
-    it('should not suggest for second argument of edit-location', () => {
+    it('should not suggest for second argument of edit location', () => {
       const adventure = (parser as any).adminSystem.getCurrentAdventure();
-      const locationIds = Array.from(adventure.locations.keys());
+      const locationIds = Array.from(adventure.locations.keys()) as string[];
       const locationId = locationIds[0];
       
-      const result = parser.getAutocomplete(`edit-location ${locationId} `, 14 + locationId.length + 1, context);
+      const result = parser.getAutocomplete(`edit location ${locationId} `, 14 + locationId.length + 1, context);
       expect(result.suggestions).toEqual([]);
     });
   });
 
   describe('getAutocomplete - edge cases', () => {
     it('should handle input with quotes', () => {
-      const result = parser.getAutocomplete('create-adventure "My', 20, context);
+      const result = parser.getAutocomplete('create adventure "My', 20, context);
       expect(result.suggestions).toEqual([]);
     });
 
@@ -1139,8 +1210,309 @@ describe('CommandParser - Tab Autocomplete', () => {
     });
 
     it('should handle multiple spaces', () => {
-      const result = parser.getAutocomplete('edit-location   ', 16, context);
+      const result = parser.getAutocomplete('edit location   ', 16, context);
       expect(result.suggestions.length).toBeGreaterThanOrEqual(0);
+    });
+  });
+});
+
+describe('CommandParser - Backward Compatibility', () => {
+  let parser: CommandParser;
+  let context: GameContext;
+
+  beforeEach(() => {
+    parser = new CommandParser();
+    context = {
+      mode: GameMode.Admin,
+      isAuthenticated: true
+    };
+  });
+
+  describe('hyphenated aliases execute commands correctly', () => {
+    it('should execute create-adventure alias', () => {
+      const result = parser.parse('create-adventure "Test Adventure"');
+      expect(result.isValid).toBe(true);
+      expect(result.command).toBe('create adventure');
+      expect(result.args).toEqual(['Test Adventure']);
+    });
+
+    it('should execute add-location alias', () => {
+      const result = parser.parse('add-location "Test Location" "Description"');
+      expect(result.isValid).toBe(true);
+      expect(result.command).toBe('add location');
+      expect(result.args).toEqual(['Test Location', 'Description']);
+    });
+
+    it('should execute add-character alias', () => {
+      const result = parser.parse('add-character "Test Character" "Hello"');
+      expect(result.isValid).toBe(true);
+      expect(result.command).toBe('add character');
+      expect(result.args).toEqual(['Test Character', 'Hello']);
+    });
+
+    it('should execute list-adventures alias', () => {
+      const result = parser.parse('list-adventures');
+      expect(result.isValid).toBe(true);
+      expect(result.command).toBe('list adventures');
+      expect(result.args).toEqual([]);
+    });
+
+    it('should execute select-adventure alias', () => {
+      const result = parser.parse('select-adventure test-id');
+      expect(result.isValid).toBe(true);
+      expect(result.command).toBe('select adventure');
+      expect(result.args).toEqual(['test-id']);
+    });
+
+    it('should execute show-adventure alias', () => {
+      const result = parser.parse('show-adventure');
+      expect(result.isValid).toBe(true);
+      expect(result.command).toBe('show adventure');
+      expect(result.args).toEqual([]);
+    });
+
+    it('should execute deselect-adventure alias', () => {
+      const result = parser.parse('deselect-adventure');
+      expect(result.isValid).toBe(true);
+      expect(result.command).toBe('deselect adventure');
+      expect(result.args).toEqual([]);
+    });
+
+    it('should execute edit-title alias', () => {
+      const result = parser.parse('edit-title "New Title"');
+      expect(result.isValid).toBe(true);
+      expect(result.command).toBe('edit title');
+      expect(result.args).toEqual(['New Title']);
+    });
+
+    it('should execute edit-description alias', () => {
+      const result = parser.parse('edit-description "New Description"');
+      expect(result.isValid).toBe(true);
+      expect(result.command).toBe('edit description');
+      expect(result.args).toEqual(['New Description']);
+    });
+
+    it('should execute edit-location alias', () => {
+      const result = parser.parse('edit-location loc-123 name "New Name"');
+      expect(result.isValid).toBe(true);
+      expect(result.command).toBe('edit location');
+      expect(result.args).toEqual(['loc-123', 'name', 'New Name']);
+    });
+
+    it('should execute remove-connection alias', () => {
+      const result = parser.parse('remove-connection loc-123 north');
+      expect(result.isValid).toBe(true);
+      expect(result.command).toBe('remove connection');
+      expect(result.args).toEqual(['loc-123', 'north']);
+    });
+
+    it('should execute create-ai-character alias', () => {
+      const result = parser.parse('create-ai-character "AI NPC" "Personality"');
+      expect(result.isValid).toBe(true);
+      expect(result.command).toBe('create ai character');
+      expect(result.args).toEqual(['AI NPC', 'Personality']);
+    });
+
+    it('should execute edit-character-personality alias', () => {
+      const result = parser.parse('edit-character-personality char-123 "New Personality"');
+      expect(result.isValid).toBe(true);
+      expect(result.command).toBe('edit character personality');
+      expect(result.args).toEqual(['char-123', 'New Personality']);
+    });
+
+    it('should execute set-ai-config alias', () => {
+      const result = parser.parse('set-ai-config apiKey test-key');
+      expect(result.isValid).toBe(true);
+      expect(result.command).toBe('set ai config');
+      expect(result.args).toEqual(['apiKey', 'test-key']);
+    });
+
+    it('should execute delete-location alias', () => {
+      const result = parser.parse('delete-location loc-123');
+      expect(result.isValid).toBe(true);
+      expect(result.command).toBe('delete location');
+      expect(result.args).toEqual(['loc-123']);
+    });
+
+    it('should execute delete-character alias', () => {
+      const result = parser.parse('delete-character char-123');
+      expect(result.isValid).toBe(true);
+      expect(result.command).toBe('delete character');
+      expect(result.args).toEqual(['char-123']);
+    });
+
+    it('should execute delete-item alias', () => {
+      const result = parser.parse('delete-item item-123');
+      expect(result.isValid).toBe(true);
+      expect(result.command).toBe('delete item');
+      expect(result.args).toEqual(['item-123']);
+    });
+
+    it('should execute save-adventure alias', () => {
+      const result = parser.parse('save-adventure');
+      expect(result.isValid).toBe(true);
+      expect(result.command).toBe('save adventure');
+      expect(result.args).toEqual([]);
+    });
+  });
+
+  describe('help works with hyphenated command names', () => {
+    it('should show help for create-adventure alias', async () => {
+      const parsed = parser.parse('help create-adventure');
+      const result = await parser.executeCommand(parsed, context);
+      
+      expect(result.success).toBe(true);
+      expect(result.output.some(line => line.includes('create adventure'))).toBe(true);
+    });
+
+    it('should show help for add-location alias', async () => {
+      const parsed = parser.parse('help add-location');
+      const result = await parser.executeCommand(parsed, context);
+      
+      expect(result.success).toBe(true);
+      expect(result.output.some(line => line.includes('add location'))).toBe(true);
+    });
+
+    it('should show help for select-adventure alias', async () => {
+      const parsed = parser.parse('help select-adventure');
+      const result = await parser.executeCommand(parsed, context);
+      
+      expect(result.success).toBe(true);
+      expect(result.output.some(line => line.includes('select adventure'))).toBe(true);
+    });
+
+    it('should show help for edit-title alias', async () => {
+      const parsed = parser.parse('help edit-title');
+      const result = await parser.executeCommand(parsed, context);
+      
+      expect(result.success).toBe(true);
+      expect(result.output.some(line => line.includes('edit title'))).toBe(true);
+    });
+
+    it('should show help for delete-location alias', async () => {
+      const parsed = parser.parse('help delete-location');
+      const result = await parser.executeCommand(parsed, context);
+      
+      expect(result.success).toBe(true);
+      expect(result.output.some(line => line.includes('delete location'))).toBe(true);
+    });
+  });
+
+  describe('both naming conventions produce identical results', () => {
+    it('should produce identical results for create adventure', () => {
+      const spaceResult = parser.parse('create adventure "Test"');
+      const hyphenResult = parser.parse('create-adventure "Test"');
+      
+      expect(spaceResult.isValid).toBe(hyphenResult.isValid);
+      expect(spaceResult.command).toBe(hyphenResult.command);
+      expect(spaceResult.args).toEqual(hyphenResult.args);
+    });
+
+    it('should produce identical results for add location', () => {
+      const spaceResult = parser.parse('add location "Room" "A room"');
+      const hyphenResult = parser.parse('add-location "Room" "A room"');
+      
+      expect(spaceResult.isValid).toBe(hyphenResult.isValid);
+      expect(spaceResult.command).toBe(hyphenResult.command);
+      expect(spaceResult.args).toEqual(hyphenResult.args);
+    });
+
+    it('should produce identical results for select adventure', () => {
+      const spaceResult = parser.parse('select adventure test-id');
+      const hyphenResult = parser.parse('select-adventure test-id');
+      
+      expect(spaceResult.isValid).toBe(hyphenResult.isValid);
+      expect(spaceResult.command).toBe(hyphenResult.command);
+      expect(spaceResult.args).toEqual(hyphenResult.args);
+    });
+
+    it('should produce identical results for edit title', () => {
+      const spaceResult = parser.parse('edit title "New Title"');
+      const hyphenResult = parser.parse('edit-title "New Title"');
+      
+      expect(spaceResult.isValid).toBe(hyphenResult.isValid);
+      expect(spaceResult.command).toBe(hyphenResult.command);
+      expect(spaceResult.args).toEqual(hyphenResult.args);
+    });
+
+    it('should produce identical results for remove connection', () => {
+      const spaceResult = parser.parse('remove connection loc-1 north');
+      const hyphenResult = parser.parse('remove-connection loc-1 north');
+      
+      expect(spaceResult.isValid).toBe(hyphenResult.isValid);
+      expect(spaceResult.command).toBe(hyphenResult.command);
+      expect(spaceResult.args).toEqual(hyphenResult.args);
+    });
+
+    it('should produce identical results for create ai character', () => {
+      const spaceResult = parser.parse('create ai character "NPC" "Personality"');
+      const hyphenResult = parser.parse('create-ai-character "NPC" "Personality"');
+      
+      expect(spaceResult.isValid).toBe(hyphenResult.isValid);
+      expect(spaceResult.command).toBe(hyphenResult.command);
+      expect(spaceResult.args).toEqual(hyphenResult.args);
+    });
+
+    it('should produce identical results for delete location', () => {
+      const spaceResult = parser.parse('delete location loc-123');
+      const hyphenResult = parser.parse('delete-location loc-123');
+      
+      expect(spaceResult.isValid).toBe(hyphenResult.isValid);
+      expect(spaceResult.command).toBe(hyphenResult.command);
+      expect(spaceResult.args).toEqual(hyphenResult.args);
+    });
+
+    it('should produce identical results for save adventure', () => {
+      const spaceResult = parser.parse('save adventure');
+      const hyphenResult = parser.parse('save-adventure');
+      
+      expect(spaceResult.isValid).toBe(hyphenResult.isValid);
+      expect(spaceResult.command).toBe(hyphenResult.command);
+      expect(spaceResult.args).toEqual(hyphenResult.args);
+    });
+  });
+
+  describe('command registration includes hyphenated aliases', () => {
+    it('should include create-adventure in aliases', () => {
+      const commands = parser.getAvailableCommands(GameMode.Admin);
+      const createCommand = commands.find(cmd => cmd.name === 'create adventure');
+      expect(createCommand?.aliases).toContain('create-adventure');
+    });
+
+    it('should include add-location in aliases', () => {
+      const commands = parser.getAvailableCommands(GameMode.Admin);
+      const addLocCommand = commands.find(cmd => cmd.name === 'add location');
+      expect(addLocCommand?.aliases).toContain('add-location');
+    });
+
+    it('should include select-adventure in aliases', () => {
+      const commands = parser.getAvailableCommands(GameMode.Admin);
+      const selectCommand = commands.find(cmd => cmd.name === 'select adventure');
+      expect(selectCommand?.aliases).toContain('select-adventure');
+    });
+
+    it('should include edit-title in aliases', () => {
+      const commands = parser.getAvailableCommands(GameMode.Admin);
+      const editTitleCommand = commands.find(cmd => cmd.name === 'edit title');
+      expect(editTitleCommand?.aliases).toContain('edit-title');
+    });
+
+    it('should include remove-connection in aliases', () => {
+      const commands = parser.getAvailableCommands(GameMode.Admin);
+      const removeCommand = commands.find(cmd => cmd.name === 'remove connection');
+      expect(removeCommand?.aliases).toContain('remove-connection');
+    });
+
+    it('should include delete-location in aliases', () => {
+      const commands = parser.getAvailableCommands(GameMode.Admin);
+      const deleteCommand = commands.find(cmd => cmd.name === 'delete location');
+      expect(deleteCommand?.aliases).toContain('delete-location');
+    });
+
+    it('should include save-adventure in aliases', () => {
+      const commands = parser.getAvailableCommands(GameMode.Admin);
+      const saveCommand = commands.find(cmd => cmd.name === 'save adventure');
+      expect(saveCommand?.aliases).toContain('save-adventure');
     });
   });
 });
