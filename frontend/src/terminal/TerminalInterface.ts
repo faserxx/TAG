@@ -13,8 +13,11 @@ export class TerminalInterface implements ITerminalInterface {
   private passwordCallback?: (password: string) => void;
   private isLoading: boolean = false;
   private loadingInterval?: number;
-  private onTabCallback?: (input: string, cursorPos: number) => { suggestions: string[]; completionText?: string };
+  private onTabCallback?: (input: string, cursorPos: number) => Promise<{ suggestions: string[]; completionText?: string }>;
   private onArrowCallback?: (direction: 'up' | 'down') => string | null;
+  private inputResolver?: (value: string) => void;
+  private inputRejector?: (reason?: any) => void;
+  private isInteractiveMode: boolean = false;
 
   constructor() {
     // Initialize xterm.js with appropriate configuration
@@ -81,19 +84,23 @@ export class TerminalInterface implements ITerminalInterface {
           return;
         }
         
-        const result = this.onTabCallback(this.currentInput, this.cursorPosition);
-        
-        if (result.completionText !== undefined) {
-          // Single match - replace input with completion
-          this.replaceInput(result.completionText);
-        } else if (result.suggestions.length > 0) {
-          // Multiple matches - display suggestions
-          this.terminal.write('\r\n');
-          for (const suggestion of result.suggestions) {
-            this.terminal.write(suggestion + '  ');
+        // Handle async autocomplete
+        const callback = this.onTabCallback;
+        (async () => {
+          const result = await callback(this.currentInput, this.cursorPosition);
+          
+          if (result.completionText !== undefined) {
+            // Single match - replace input with completion
+            this.replaceInput(result.completionText);
+          } else if (result.suggestions.length > 0) {
+            // Multiple matches - display suggestions
+            this.terminal.write('\r\n');
+            for (const suggestion of result.suggestions) {
+              this.terminal.write(suggestion + '  ');
+            }
+            this.terminal.write('\r\n' + this.currentPrompt + this.currentInput);
           }
-          this.terminal.write('\r\n' + this.currentPrompt + this.currentInput);
-        }
+        })();
         return;
       }
 
@@ -132,6 +139,16 @@ export class TerminalInterface implements ITerminalInterface {
           return;
         }
         
+        // Handle interactive mode
+        if (this.isInteractiveMode && this.inputResolver) {
+          this.isInteractiveMode = false;
+          const resolver = this.inputResolver;
+          this.inputResolver = undefined;
+          this.inputRejector = undefined;
+          resolver(input);
+          return;
+        }
+        
         // Handle normal command mode
         if (input && this.commandCallback) {
           this.commandCallback(input);
@@ -163,6 +180,16 @@ export class TerminalInterface implements ITerminalInterface {
         if (this.passwordMode) {
           this.passwordMode = false;
           this.passwordCallback = undefined;
+        }
+        
+        // Cancel interactive mode if active
+        if (this.isInteractiveMode && this.inputRejector) {
+          this.isInteractiveMode = false;
+          const rejector = this.inputRejector;
+          this.inputResolver = undefined;
+          this.inputRejector = undefined;
+          rejector(new Error('CANCELLED'));
+          return;
         }
         
         this.terminal.write(this.currentPrompt);
@@ -234,7 +261,7 @@ export class TerminalInterface implements ITerminalInterface {
   /**
    * Register callback for Tab key autocomplete
    */
-  onTab(callback: (input: string, cursorPos: number) => { suggestions: string[]; completionText?: string }): void {
+  onTab(callback: (input: string, cursorPos: number) => Promise<{ suggestions: string[]; completionText?: string }>): void {
     this.onTabCallback = callback;
   }
 
@@ -315,6 +342,128 @@ export class TerminalInterface implements ITerminalInterface {
     
     // Clear the loading line
     this.terminal.write('\r' + ' '.repeat(50) + '\r');
+  }
+
+  /**
+   * Prompt for single-line input with optional default value
+   * Returns the input or default value if Enter is pressed without input
+   * Throws error with message 'CANCELLED' if Ctrl+C is pressed or "cancel" is typed
+   */
+  async promptForInput(prompt: string, defaultValue?: string): Promise<string> {
+    // Display prompt
+    this.write(prompt, OutputStyle.System);
+    
+    return new Promise<string>((resolve, reject) => {
+      this.isInteractiveMode = true;
+      this.inputResolver = (input: string) => {
+        // Check for cancellation keyword
+        if (input.toLowerCase() === 'cancel') {
+          reject(new Error('CANCELLED'));
+          return;
+        }
+        
+        // Return input or default value
+        resolve(input || defaultValue || '');
+      };
+      this.inputRejector = reject;
+    });
+  }
+
+  /**
+   * Prompt for multi-line input
+   * User types END on a new line to finish
+   * Returns array of lines (excluding the END terminator)
+   * Throws error with message 'CANCELLED' if Ctrl+C is pressed or "cancel" is typed
+   */
+  async promptForMultiLineInput(prompt: string, currentValue?: string[]): Promise<string[]> {
+    this.writeLine(prompt, OutputStyle.System);
+    
+    // Display current multi-line values with line numbers
+    if (currentValue && currentValue.length > 0) {
+      this.writeLine('Current value:', OutputStyle.System);
+      currentValue.forEach((line, index) => {
+        this.writeLine(`  ${index + 1}: ${line}`, OutputStyle.System);
+      });
+      this.writeLine('');
+    }
+    
+    this.writeLine('Type END on a new line when finished.', OutputStyle.System);
+    this.writeLine('Press Enter without typing to keep current value.', OutputStyle.System);
+    
+    const lines: string[] = [];
+    
+    while (true) {
+      try {
+        const line = await this.promptForInput('> ');
+        
+        // Check for END terminator
+        if (line.trim() === 'END') {
+          break;
+        }
+        
+        lines.push(line);
+      } catch (error) {
+        // Propagate cancellation
+        throw error;
+      }
+    }
+    
+    // Return lines if any were entered, otherwise return current value
+    return lines.length > 0 ? lines : (currentValue || []);
+  }
+
+  /**
+   * Prompt for yes/no confirmation
+   * Returns true for y/yes, false for n/no
+   * Throws error with message 'CANCELLED' if Ctrl+C is pressed or "cancel" is typed
+   */
+  async promptForConfirmation(prompt: string): Promise<boolean> {
+    const response = await this.promptForInput(`${prompt} (y/n): `);
+    const normalized = response.toLowerCase().trim();
+    return normalized === 'y' || normalized === 'yes';
+  }
+
+  /**
+   * Display a field header with progress indicator
+   */
+  displayFieldHeader(fieldName: string, fieldNumber: number, totalFields: number): void {
+    this.writeLine('');
+    this.writeLine('─'.repeat(60), OutputStyle.System);
+    this.writeLine(`Field ${fieldNumber} of ${totalFields}`, OutputStyle.Info);
+    this.writeLine(`\x1b[1m${fieldName}\x1b[0m`); // Bold field name
+    this.writeLine('─'.repeat(60), OutputStyle.System);
+  }
+
+  /**
+   * Display the current value of a field
+   * Handles both single-line and multi-line values
+   */
+  displayCurrentValue(value: string | string[]): void {
+    if (Array.isArray(value)) {
+      // Multi-line value
+      if (value.length === 0) {
+        this.writeLine('Current value: (empty)', OutputStyle.System);
+      } else {
+        this.writeLine('Current value:', OutputStyle.System);
+        value.forEach((line, index) => {
+          this.writeLine(`  ${index + 1}: ${line}`, OutputStyle.System);
+        });
+      }
+    } else {
+      // Single-line value
+      if (value === '') {
+        this.writeLine('Current value: (empty)', OutputStyle.System);
+      } else {
+        this.writeLine(`Current value: \x1b[2m${value}\x1b[0m`); // Dimmed text
+      }
+    }
+  }
+
+  /**
+   * Focus the terminal for input
+   */
+  focus(): void {
+    this.terminal.focus();
   }
 
   private applyStyle(text: string, style?: OutputStyle): string {

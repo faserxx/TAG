@@ -72,20 +72,44 @@ export class GameState {
   /**
    * Add item to inventory
    */
-  addItem(item: Item): void {
+  addToInventory(item: Item): void {
     this.inventory.push(item);
   }
 
   /**
-   * Remove item from inventory
+   * Remove item from inventory and return it
    */
-  removeItem(itemId: string): boolean {
+  removeFromInventory(itemId: string): Item | null {
     const index = this.inventory.findIndex(item => item.id === itemId);
     if (index !== -1) {
+      const item = this.inventory[index];
       this.inventory.splice(index, 1);
-      return true;
+      return item;
     }
-    return false;
+    return null;
+  }
+
+  /**
+   * Find an item in inventory by ID or name (case-insensitive)
+   */
+  findInInventory(identifier: string): Item | undefined {
+    const lowerIdentifier = identifier.toLowerCase();
+    // First try to find by ID
+    const byId = this.inventory.find(item => item.id === identifier);
+    if (byId) {
+      return byId;
+    }
+    // Then try exact name match (case-insensitive)
+    const exactMatch = this.inventory.find(
+      item => item.name.toLowerCase() === lowerIdentifier
+    );
+    if (exactMatch) {
+      return exactMatch;
+    }
+    // Finally try partial match - find items containing the identifier
+    return this.inventory.find(
+      item => item.name.toLowerCase().includes(lowerIdentifier)
+    );
   }
 
   /**
@@ -93,6 +117,20 @@ export class GameState {
    */
   hasItem(itemId: string): boolean {
     return this.inventory.some(item => item.id === itemId);
+  }
+
+  /**
+   * Legacy method - kept for backward compatibility
+   */
+  addItem(item: Item): void {
+    this.addToInventory(item);
+  }
+
+  /**
+   * Legacy method - kept for backward compatibility
+   */
+  removeItem(itemId: string): boolean {
+    return this.removeFromInventory(itemId) !== null;
   }
 
   /**

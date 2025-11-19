@@ -695,13 +695,13 @@ describe('CommandParser - Adventure Editing Commands', () => {
       expect(result.args).toEqual(['loc-123', 'description', 'A new description']);
     });
 
-    it('should fail when insufficient arguments provided', async () => {
+    it('should trigger interactive mode when only ID provided', async () => {
       const parsed = parser.parse('edit location loc-123');
       const result = await parser.executeCommand(parsed, context);
       
+      // Interactive mode should be triggered (EditSessionManager not available in test context)
       expect(result.success).toBe(false);
-      expect(result.error?.code).toBe('MISSING_ARGUMENT');
-      expect(result.error?.message).toContain('Three arguments required');
+      expect(result.error?.code).toBe('EDIT_SESSION_NOT_AVAILABLE');
     });
 
     it('should fail when no adventure is selected', async () => {

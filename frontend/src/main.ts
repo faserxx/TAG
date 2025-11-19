@@ -8,6 +8,7 @@ import { ChatManager } from './chat/ChatManager';
 import { OutputStyle, GameMode, GameContext } from './types';
 import { ApiError } from './api/ApiClient';
 import './styles/terminal.css';
+import './styles/form-modal.css';
 
 // Initialize the terminal interface
 const container = document.getElementById('terminal');
@@ -26,6 +27,7 @@ const chatManager = new ChatManager();
 parser.setGameEngine(gameEngine);
 parser.setAuthManager(authManager);
 parser.setChatManager(chatManager);
+parser.setTerminal(terminal);
 
 // Initialize game context
 const gameContext: GameContext = {
@@ -290,8 +292,9 @@ async function sendChatMessage(message: string): Promise<void> {
     console.error('Chat message error:', error);
   }
   
-  // Show chat prompt
-  terminal.write('> ');
+  // Show chat prompt with character name
+  const currentSession = chatManager.getSession();
+  terminal.write(`[${currentSession?.npcName}] > `);
 }
 
 // Global error handlers
@@ -328,6 +331,7 @@ terminal.onCommand(async (input: string) => {
       chatManager.endSession();
       terminal.writeLine(`You ended your conversation with ${session?.npcName}.`, OutputStyle.Info);
       terminal.writeLine('You can now use regular commands again.\n', OutputStyle.Info);
+      // Restore normal prompt
       terminal.write(gameContext.mode === GameMode.Admin ? '# ' : '$ ');
       return;
     }
@@ -388,6 +392,11 @@ terminal.onCommand(async (input: string) => {
   if (result.success && result.output.includes('CLEAR_SCREEN')) {
     terminal.clear();
     return;
+  }
+  
+  // Handle chat mode start - filter out the marker from output
+  if (result.output.some(line => line.startsWith('CHAT_MODE_START:'))) {
+    result.output = result.output.filter(line => !line.startsWith('CHAT_MODE_START:'));
   }
   
   // Handle password prompt for sudo
@@ -461,7 +470,13 @@ terminal.onCommand(async (input: string) => {
   }
   
   // Always show prompt after command execution (unless it was a special command that handles its own prompt)
-  terminal.write(gameContext.mode === GameMode.Admin ? '# ' : '$ ');
+  // Check if in chat mode and show character name in prompt
+  if (chatManager.isInChatMode()) {
+    const session = chatManager.getSession();
+    terminal.write(`[${session?.npcName}] > `);
+  } else {
+    terminal.write(gameContext.mode === GameMode.Admin ? '# ' : '$ ');
+  }
 });
 
 console.log('Terminal Adventure Game - Frontend initialized');

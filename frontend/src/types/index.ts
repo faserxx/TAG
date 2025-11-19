@@ -17,6 +17,11 @@ export interface ITerminalInterface {
   clear(): void;
   setPrompt(prompt: string): void;
   onCommand(callback: (command: string) => void): void;
+  promptForInput(prompt: string, defaultValue?: string): Promise<string>;
+  promptForMultiLineInput(prompt: string, currentValue?: string[]): Promise<string[]>;
+  promptForConfirmation(prompt: string): Promise<boolean>;
+  displayFieldHeader(fieldName: string, fieldNumber: number, totalFields: number): void;
+  displayCurrentValue(value: string | string[]): void;
 }
 
 export enum GameMode {

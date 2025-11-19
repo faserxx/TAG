@@ -717,6 +717,168 @@ export class AdministrationSystem {
   }
 
   /**
+   * Add an item to a specific location
+   */
+  addItem(locationId: string, name: string, description: string): string {
+    if (!this.currentAdventure) {
+      throw new Error('No adventure is currently being edited');
+    }
+
+    const location = this.currentAdventure.locations.get(locationId);
+    
+    if (!location) {
+      throw new Error(`Location not found: ${locationId}`);
+    }
+
+    const id = this.generateId(name);
+    
+    const item = {
+      id,
+      name,
+      description
+    };
+
+    location.addItem(item);
+
+    this.currentAdventure.modifiedAt = new Date();
+
+    return id;
+  }
+
+  /**
+   * Add an item to the current location
+   */
+  addItemToCurrentLocation(name: string, description: string): string {
+    if (!this.currentLocationId) {
+      throw new Error('No current location set. Add a location first.');
+    }
+
+    return this.addItem(this.currentLocationId, name, description);
+  }
+
+  /**
+   * Update the name of an item
+   */
+  updateItemName(itemId: string, name: string): void {
+    if (!this.currentAdventure) {
+      throw new Error('No adventure is currently being edited');
+    }
+
+    const result = this.findItem(itemId);
+    if (!result) {
+      throw new Error(`Item not found: ${itemId}`);
+    }
+
+    if (!name || name.trim() === '') {
+      throw new Error('Item name cannot be empty');
+    }
+
+    const { item, location } = result;
+
+    // Create updated item
+    const updatedItem = {
+      id: item.id,
+      name,
+      description: item.description
+    };
+
+    // Create new items array with updated item
+    const items = location.getItems();
+    const updatedItems = items.map(i => i.id === itemId ? updatedItem : i);
+
+    // Create new location with updated items
+    const updatedLocation = new Location(
+      location.id,
+      location.name,
+      location.description,
+      location.getExits(),
+      location.getCharacters(),
+      updatedItems
+    );
+
+    this.currentAdventure.locations.set(location.id, updatedLocation);
+    this.currentAdventure.modifiedAt = new Date();
+  }
+
+  /**
+   * Update the description of an item
+   */
+  updateItemDescription(itemId: string, description: string): void {
+    if (!this.currentAdventure) {
+      throw new Error('No adventure is currently being edited');
+    }
+
+    const result = this.findItem(itemId);
+    if (!result) {
+      throw new Error(`Item not found: ${itemId}`);
+    }
+
+    const { item, location } = result;
+
+    // Create updated item
+    const updatedItem = {
+      id: item.id,
+      name: item.name,
+      description
+    };
+
+    // Create new items array with updated item
+    const items = location.getItems();
+    const updatedItems = items.map(i => i.id === itemId ? updatedItem : i);
+
+    // Create new location with updated items
+    const updatedLocation = new Location(
+      location.id,
+      location.name,
+      location.description,
+      location.getExits(),
+      location.getCharacters(),
+      updatedItems
+    );
+
+    this.currentAdventure.locations.set(location.id, updatedLocation);
+    this.currentAdventure.modifiedAt = new Date();
+  }
+
+  /**
+   * Find an item across all locations
+   */
+  findItem(itemId: string): { item: any, location: Location } | null {
+    if (!this.currentAdventure) {
+      return null;
+    }
+
+    for (const [, location] of this.currentAdventure.locations) {
+      const items = location.getItems();
+      const item = items.find(i => i.id === itemId);
+      
+      if (item) {
+        return { item, location };
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Get all item IDs from the current adventure (for autocomplete)
+   */
+  getItemIds(): string[] {
+    if (!this.currentAdventure) {
+      return [];
+    }
+
+    const itemIds: string[] = [];
+    
+    for (const [, location] of this.currentAdventure.locations) {
+      const items = location.getItems();
+      itemIds.push(...items.map(item => item.id));
+    }
+
+    return itemIds;
+  }
+
+  /**
    * Delete an item from the current adventure
    */
   deleteItem(itemId: string): void {
@@ -800,7 +962,7 @@ export class AdministrationSystem {
         description: location.description,
         exits,
         characters: location.getCharacters(),
-        items: []
+        items: location.getItems()
       };
     }
     
@@ -833,6 +995,11 @@ export class AdministrationSystem {
       // Add characters
       for (const character of location.characters || []) {
         loc.addCharacter(character);
+      }
+      
+      // Add items
+      for (const item of location.items || []) {
+        loc.addItem(item);
       }
       
       locations.set(locationId, loc);

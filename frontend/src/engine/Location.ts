@@ -116,12 +116,25 @@ export class Location {
   }
 
   /**
-   * Find an item by name (case-insensitive)
+   * Find an item by ID or name (case-insensitive)
    */
-  findItem(name: string): Item | undefined {
-    const lowerName = name.toLowerCase();
+  findItem(identifier: string): Item | undefined {
+    const lowerIdentifier = identifier.toLowerCase();
+    // First try to find by ID
+    const byId = this.items.find(item => item.id === identifier);
+    if (byId) {
+      return byId;
+    }
+    // Then try exact name match (case-insensitive)
+    const exactMatch = this.items.find(
+      item => item.name.toLowerCase() === lowerIdentifier
+    );
+    if (exactMatch) {
+      return exactMatch;
+    }
+    // Finally try partial match - find items containing the identifier
     return this.items.find(
-      item => item.name.toLowerCase() === lowerName
+      item => item.name.toLowerCase().includes(lowerIdentifier)
     );
   }
 
@@ -133,15 +146,16 @@ export class Location {
   }
 
   /**
-   * Remove an item from this location
+   * Remove an item from this location and return it
    */
-  removeItem(itemId: string): boolean {
+  removeItem(itemId: string): Item | null {
     const index = this.items.findIndex(item => item.id === itemId);
     if (index !== -1) {
+      const item = this.items[index];
       this.items.splice(index, 1);
-      return true;
+      return item;
     }
-    return false;
+    return null;
   }
 
   /**

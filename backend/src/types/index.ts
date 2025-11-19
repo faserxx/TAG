@@ -97,3 +97,10 @@ export interface GameStateRow {
   mode: string;
   updated_at: string;
 }
+
+export interface ItemRow {
+  id: string;
+  location_id: string;
+  name: string;
+  description: string;
+}

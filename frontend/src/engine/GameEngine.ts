@@ -287,6 +287,201 @@ export class GameEngine {
   }
 
   /**
+   * Handle take command - pick up an item from the current location
+   */
+  async handleTake(itemIdentifier: string): Promise<CommandResult> {
+    const currentLocation = this.getCurrentLocation();
+
+    if (!currentLocation) {
+      return {
+        success: false,
+        output: [],
+        error: {
+          code: 'NO_LOCATION',
+          message: 'No adventure loaded',
+          suggestion: 'Load an adventure first'
+        }
+      };
+    }
+
+    // Find the item in the current location
+    const item = currentLocation.findItem(itemIdentifier);
+
+    if (!item) {
+      const items = currentLocation.getItems();
+      return {
+        success: false,
+        output: [],
+        error: {
+          code: 'ITEM_NOT_FOUND',
+          message: `You don't see ${itemIdentifier} here.`,
+          suggestion: items.length > 0 
+            ? `Available items: ${items.map(i => i.name).join(', ')}` 
+            : 'There are no items here.'
+        }
+      };
+    }
+
+    // Remove item from location
+    currentLocation.removeItem(item.id);
+
+    // Add item to inventory
+    this.gameState.addToInventory(item);
+
+    // Save state
+    try {
+      await this.gameState.save();
+    } catch (error) {
+      console.error('Failed to save game state:', error);
+    }
+
+    return {
+      success: true,
+      output: [`You take the ${item.name}.`],
+      error: undefined
+    };
+  }
+
+  /**
+   * Handle drop command - drop an item from inventory into current location
+   */
+  async handleDrop(itemIdentifier: string): Promise<CommandResult> {
+    const currentLocation = this.getCurrentLocation();
+
+    if (!currentLocation) {
+      return {
+        success: false,
+        output: [],
+        error: {
+          code: 'NO_LOCATION',
+          message: 'No adventure loaded',
+          suggestion: 'Load an adventure first'
+        }
+      };
+    }
+
+    // Find the item in inventory
+    const item = this.gameState.findInInventory(itemIdentifier);
+
+    if (!item) {
+      const inventory = this.gameState.getInventory();
+      return {
+        success: false,
+        output: [],
+        error: {
+          code: 'ITEM_NOT_IN_INVENTORY',
+          message: `You don't have ${itemIdentifier}.`,
+          suggestion: inventory.length > 0 
+            ? `You are carrying: ${inventory.map(i => i.name).join(', ')}` 
+            : 'Your inventory is empty.'
+        }
+      };
+    }
+
+    // Remove item from inventory
+    this.gameState.removeFromInventory(item.id);
+
+    // Add item to current location
+    currentLocation.addItem(item);
+
+    // Save state
+    try {
+      await this.gameState.save();
+    } catch (error) {
+      console.error('Failed to save game state:', error);
+    }
+
+    return {
+      success: true,
+      output: [`You drop the ${item.name}.`],
+      error: undefined
+    };
+  }
+
+  /**
+   * Handle examine command - view detailed description of an item
+   */
+  async handleExamine(itemIdentifier: string): Promise<CommandResult> {
+    const currentLocation = this.getCurrentLocation();
+
+    if (!currentLocation) {
+      return {
+        success: false,
+        output: [],
+        error: {
+          code: 'NO_LOCATION',
+          message: 'No adventure loaded',
+          suggestion: 'Load an adventure first'
+        }
+      };
+    }
+
+    // Search for item in current location first
+    let item = currentLocation.findItem(itemIdentifier);
+
+    // If not found in location, search inventory
+    if (!item) {
+      item = this.gameState.findInInventory(itemIdentifier);
+    }
+
+    if (!item) {
+      const locationItems = currentLocation.getItems();
+      const inventoryItems = this.gameState.getInventory();
+      const allItems = [...locationItems, ...inventoryItems];
+      
+      return {
+        success: false,
+        output: [],
+        error: {
+          code: 'ITEM_NOT_AVAILABLE',
+          message: `You don't see ${itemIdentifier} here or in your inventory.`,
+          suggestion: allItems.length > 0 
+            ? `Available items: ${allItems.map(i => i.name).join(', ')}` 
+            : 'There are no items available.'
+        }
+      };
+    }
+
+    return {
+      success: true,
+      output: [
+        `\n=== ${item.name} ===`,
+        item.description
+      ],
+      error: undefined
+    };
+  }
+
+  /**
+   * Handle inventory command - list all items in player inventory
+   */
+  async handleInventory(): Promise<CommandResult> {
+    const inventory = this.gameState.getInventory();
+
+    if (inventory.length === 0) {
+      return {
+        success: true,
+        output: ['Your inventory is empty.'],
+        error: undefined
+      };
+    }
+
+    const output: string[] = ['\n=== Inventory ==='];
+    
+    inventory.forEach(item => {
+      output.push(`${item.name} - ${item.description}`);
+    });
+
+    output.push(`\nTotal items: ${inventory.length}`);
+
+    return {
+      success: true,
+      output,
+      error: undefined
+    };
+  }
+
+  /**
    * Reset the game
    */
   async resetGame(): Promise<void> {

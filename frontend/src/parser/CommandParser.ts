@@ -16,6 +16,8 @@ import { AdminMapRenderer } from '../engine/AdminMapRenderer';
 import { ChatManager } from '../chat/ChatManager';
 import { Location } from '../engine/Location';
 import { Item } from '../engine/GameState';
+import { EditSessionManager } from '../forms/EditSessionManager';
+import { TerminalInterface } from '../terminal/TerminalInterface';
 
 export class CommandParser implements ICommandParser {
   private commands: Map<string, Command> = new Map();
@@ -29,6 +31,7 @@ export class CommandParser implements ICommandParser {
   private commandHistory: string[] = [];
   private historyIndex: number = -1;
   private readonly maxHistorySize: number = 50;
+  private editSessionManager: EditSessionManager | null = null;
 
   constructor() {
     this.helpSystem = new HelpSystem();
@@ -56,6 +59,13 @@ export class CommandParser implements ICommandParser {
    */
   setChatManager(chatManager: ChatManager): void {
     this.chatManager = chatManager;
+  }
+
+  /**
+   * Set the terminal interface instance
+   */
+  setTerminal(terminal: TerminalInterface): void {
+    this.editSessionManager = new EditSessionManager(terminal, this.adminSystem);
   }
 
   /**
@@ -467,7 +477,7 @@ export class CommandParser implements ICommandParser {
   /**
    * Get autocomplete suggestions for partial input
    */
-  getAutocomplete(input: string, cursorPos: number, context: GameContext): { suggestions: string[]; completionText?: string } {
+  async getAutocomplete(input: string, cursorPos: number, context: GameContext): Promise<{ suggestions: string[]; completionText?: string }> {
     // Parse the input to identify command and argument position
     const beforeCursor = input.substring(0, cursorPos);
     const tokens = this.tokenize(beforeCursor);
@@ -503,21 +513,35 @@ export class CommandParser implements ICommandParser {
     }
     
     // Special case: if we have a partial token and didn't match a command above,
-    // try matching the first N-1 tokens to see if we're completing an argument
-    // for a multi-word command (e.g., "edit location entr" -> completing argument for "edit location")
+    // FIRST check if we could be completing a multi-word command name
+    // THEN check if we're completing an argument
     if (!matchedCommand && isPartialToken && tokens.length > 1) {
-      for (let wordCount = Math.min(3, tokens.length - 1); wordCount >= 1; wordCount--) {
-        const potentialCommand = tokens.slice(0, wordCount).join(' ').toLowerCase();
-        
-        if (this.commands.has(potentialCommand) || this.aliases.has(potentialCommand)) {
-          // Check if this command expects arguments (location ID commands)
-          const resolvedCmd = this.aliases.get(potentialCommand) || potentialCommand;
-          const locationIdCommands = ['edit location', 'remove connection', 'delete location'];
+      // Check if the full input (including partial token) could be completing a command
+      const { commands: commandNames } = this.getCommandSuggestionsDetailed(partialCommand, context.mode);
+      
+      // If there are command name matches, prioritize command completion over argument completion
+      if (commandNames.length > 0) {
+        // Don't set matchedCommand - let it fall through to command name completion
+      } else {
+        // No command name matches, so check for argument completion
+        for (let wordCount = Math.min(3, tokens.length - 1); wordCount >= 1; wordCount--) {
+          const potentialCommand = tokens.slice(0, wordCount).join(' ').toLowerCase();
           
-          if (locationIdCommands.includes(resolvedCmd)) {
-            matchedCommand = resolvedCmd;
-            commandTokenCount = wordCount;
-            break;
+          if (this.commands.has(potentialCommand) || this.aliases.has(potentialCommand)) {
+            // Check if this command expects arguments
+            const resolvedCmd = this.aliases.get(potentialCommand) || potentialCommand;
+            const locationIdCommands = ['edit location', 'remove connection', 'delete location'];
+            const adventureIdCommands = ['load', 'select adventure', 'edit adventure'];
+            const characterIdCommands = ['edit character', 'edit character personality'];
+            const itemIdCommands = ['edit item', 'delete item'];
+            const itemPlayerCommands = ['examine', 'take', 'drop'];
+            const allArgCommands = [...locationIdCommands, ...adventureIdCommands, ...characterIdCommands, ...itemIdCommands, ...itemPlayerCommands];
+            
+            if (allArgCommands.includes(resolvedCmd)) {
+              matchedCommand = resolvedCmd;
+              commandTokenCount = wordCount;
+              break;
+            }
           }
         }
       }
@@ -542,66 +566,306 @@ export class CommandParser implements ICommandParser {
     // We're completing an argument
     const resolvedCommand = matchedCommand;
     
-    // Check if this command supports location ID autocomplete
-    const locationIdCommands = ['edit location', 'remove connection', 'delete location'];
-    
-    if (!locationIdCommands.includes(resolvedCommand)) {
-      return { suggestions: [] };
-    }
-
-    // Only provide autocomplete in admin mode with an active edit session
-    if (context.mode !== GameMode.Admin) {
-      return { suggestions: [] };
-    }
-
-    const currentAdventure = this.adminSystem.getCurrentAdventure();
-    if (!currentAdventure) {
-      return { suggestions: [] };
-    }
-
-    // Get all location IDs
-    const locationIds = this.adminSystem.getLocationIds();
-    
     // Determine which argument position we're at (after the command tokens)
     let argIndex = tokens.length - commandTokenCount; // 0-based index for arguments (excluding command)
     if (!isPartialToken) {
       argIndex++; // We're starting a new argument
     }
-
-    // Check if current argument position should be a location ID
-    let shouldAutocomplete = false;
     
-    if (resolvedCommand === 'edit location' && argIndex === 1) {
-      // First argument is location ID
-      shouldAutocomplete = true;
-    } else if (resolvedCommand === 'remove connection' && argIndex === 1) {
-      // First argument is location ID
-      shouldAutocomplete = true;
-    } else if (resolvedCommand === 'delete location' && argIndex === 1) {
-      // First argument is location ID
-      shouldAutocomplete = true;
-    }
-
-    if (!shouldAutocomplete) {
-      return { suggestions: [] };
-    }
-
-    // Filter location IDs based on partial input
+    // Get partial input for filtering
     const partialInput = isPartialToken ? lastToken : '';
-    const matches = locationIds.filter(id => 
-      id.toLowerCase().startsWith(partialInput.toLowerCase())
-    );
+    
+    // Define commands that support entity ID autocomplete
+    const locationIdCommands = ['edit location', 'remove connection', 'delete location'];
+    const adventureIdCommands = ['load', 'select adventure', 'edit adventure'];
+    const characterIdCommands = ['edit character', 'edit character personality'];
+    
+    // LOCATION ID AUTOCOMPLETE
+    if (locationIdCommands.includes(resolvedCommand) && argIndex === 1) {
+      // Only provide autocomplete in admin mode with an active edit session
+      if (context.mode !== GameMode.Admin) {
+        return { suggestions: [] };
+      }
 
-    // If exactly one match, return as completion
-    if (matches.length === 1) {
-      return {
-        suggestions: matches,
-        completionText: matches[0]
-      };
+      const currentAdventure = this.adminSystem.getCurrentAdventure();
+      if (!currentAdventure) {
+        return { suggestions: [] };
+      }
+
+      // Get all location IDs
+      const locationIds = this.adminSystem.getLocationIds();
+      
+      // Filter location IDs based on partial input
+      const matches = locationIds.filter(id => 
+        id.toLowerCase().startsWith(partialInput.toLowerCase())
+      );
+
+      // If exactly one match, return as completion with full command
+      if (matches.length === 1) {
+        const commandPart = tokens.slice(0, commandTokenCount).join(' ');
+        const fullCompletion = `${commandPart} ${matches[0]}`;
+        
+        return {
+          suggestions: matches,
+          completionText: fullCompletion
+        };
+      }
+
+      return { suggestions: matches };
+    }
+    
+    // ADVENTURE ID AUTOCOMPLETE
+    if (adventureIdCommands.includes(resolvedCommand) && argIndex === 1) {
+      // Get adventure IDs from API
+      let adventureIds: string[] = [];
+      
+      try {
+        adventureIds = await this.getAvailableAdventureIds();
+      } catch (error) {
+        console.error('[Autocomplete] Failed to fetch adventure IDs:', error);
+        return { suggestions: [] };
+      }
+      
+      // Filter adventure IDs based on partial input
+      const matches = adventureIds.filter(id => 
+        id.toLowerCase().startsWith(partialInput.toLowerCase())
+      );
+
+      // If exactly one match, return as completion with full command
+      if (matches.length === 1) {
+        const commandPart = tokens.slice(0, commandTokenCount).join(' ');
+        const fullCompletion = `${commandPart} ${matches[0]}`;
+        
+        return {
+          suggestions: matches,
+          completionText: fullCompletion
+        };
+      }
+
+      return { suggestions: matches };
+    }
+    
+    // CHARACTER ID AUTOCOMPLETE
+    if (characterIdCommands.includes(resolvedCommand) && argIndex === 1) {
+      // Only provide autocomplete in admin mode with an active edit session
+      if (context.mode !== GameMode.Admin) {
+        return { suggestions: [] };
+      }
+
+      const currentAdventure = this.adminSystem.getCurrentAdventure();
+      if (!currentAdventure) {
+        return { suggestions: [] };
+      }
+
+      // Get all character IDs from all locations
+      const characterIds: string[] = [];
+      for (const location of currentAdventure.locations.values()) {
+        for (const character of location.getCharacters()) {
+          characterIds.push(character.id);
+        }
+      }
+      
+      // Filter character IDs based on partial input
+      const matches = characterIds.filter(id => 
+        id.toLowerCase().startsWith(partialInput.toLowerCase())
+      );
+
+      // If exactly one match, return as completion with full command
+      if (matches.length === 1) {
+        const commandPart = tokens.slice(0, commandTokenCount).join(' ');
+        const fullCompletion = `${commandPart} ${matches[0]}`;
+        
+        return {
+          suggestions: matches,
+          completionText: fullCompletion
+        };
+      }
+
+      return { suggestions: matches };
+    }
+    
+    // ITEM ID AUTOCOMPLETE (Admin commands)
+    const itemIdAdminCommands = ['edit item', 'delete item'];
+    if (itemIdAdminCommands.includes(resolvedCommand) && argIndex === 1) {
+      // Only provide autocomplete in admin mode with an active edit session
+      if (context.mode !== GameMode.Admin) {
+        return { suggestions: [] };
+      }
+
+      const currentAdventure = this.adminSystem.getCurrentAdventure();
+      if (!currentAdventure) {
+        return { suggestions: [] };
+      }
+
+      // Get all item IDs
+      const itemIds = this.adminSystem.getItemIds();
+      
+      // Filter item IDs based on partial input
+      const matches = itemIds.filter(id => 
+        id.toLowerCase().startsWith(partialInput.toLowerCase())
+      );
+
+      // If exactly one match, return as completion with full command
+      if (matches.length === 1) {
+        const commandPart = tokens.slice(0, commandTokenCount).join(' ');
+        const fullCompletion = `${commandPart} ${matches[0]}`;
+        
+        return {
+          suggestions: matches,
+          completionText: fullCompletion
+        };
+      }
+
+      return { suggestions: matches };
+    }
+    
+    // ITEM AUTOCOMPLETE (Player commands - examine, take, drop)
+    const examineCommand = ['examine'];
+    const takeCommand = ['take'];
+    const dropCommand = ['drop'];
+    
+    // Examine: show items in location + inventory
+    if (examineCommand.includes(resolvedCommand) && argIndex === 1) {
+      if (!this.gameEngine) {
+        return { suggestions: [] };
+      }
+
+      const currentLocation = this.gameEngine.getCurrentLocation();
+      if (!currentLocation) {
+        return { suggestions: [] };
+      }
+
+      const gameState = this.gameEngine.getGameState();
+      
+      // Get items from location and inventory
+      const locationItems = currentLocation.getItems();
+      const inventoryItems = gameState.getInventory();
+      const allItems = [...locationItems, ...inventoryItems];
+      
+      // Get item names
+      const itemNames = allItems.map(item => item.name);
+      
+      // Filter based on partial input - support both prefix and word boundary matching
+      const lowerPartial = partialInput.toLowerCase();
+      const matches = itemNames.filter(name => {
+        const lowerName = name.toLowerCase();
+        // Match if name starts with partial input
+        if (lowerName.startsWith(lowerPartial)) {
+          return true;
+        }
+        // Match if any word in the name starts with partial input
+        const words = lowerName.split(/\s+/);
+        return words.some(word => word.startsWith(lowerPartial));
+      });
+
+      return { suggestions: matches };
+    }
+    
+    // Take: show items in current location
+    if (takeCommand.includes(resolvedCommand) && argIndex === 1) {
+      if (!this.gameEngine) {
+        return { suggestions: [] };
+      }
+
+      const currentLocation = this.gameEngine.getCurrentLocation();
+      if (!currentLocation) {
+        return { suggestions: [] };
+      }
+
+      const locationItems = currentLocation.getItems();
+      const itemNames = locationItems.map(item => item.name);
+      
+      // Filter based on partial input - support both prefix and word boundary matching
+      const lowerPartial = partialInput.toLowerCase();
+      const matches = itemNames.filter(name => {
+        const lowerName = name.toLowerCase();
+        // Match if name starts with partial input
+        if (lowerName.startsWith(lowerPartial)) {
+          return true;
+        }
+        // Match if any word in the name starts with partial input
+        const words = lowerName.split(/\s+/);
+        return words.some(word => word.startsWith(lowerPartial));
+      });
+
+      return { suggestions: matches };
+    }
+    
+    // Drop: show items in inventory
+    if (dropCommand.includes(resolvedCommand) && argIndex === 1) {
+      if (!this.gameEngine) {
+        return { suggestions: [] };
+      }
+
+      const gameState = this.gameEngine.getGameState();
+      const inventoryItems = gameState.getInventory();
+      const itemNames = inventoryItems.map(item => item.name);
+      
+      // Filter based on partial input - support both prefix and word boundary matching
+      const lowerPartial = partialInput.toLowerCase();
+      const matches = itemNames.filter(name => {
+        const lowerName = name.toLowerCase();
+        // Match if name starts with partial input
+        if (lowerName.startsWith(lowerPartial)) {
+          return true;
+        }
+        // Match if any word in the name starts with partial input
+        const words = lowerName.split(/\s+/);
+        return words.some(word => word.startsWith(lowerPartial));
+      });
+
+      return { suggestions: matches };
     }
 
-    // Multiple matches or no matches
-    return { suggestions: matches };
+    // No autocomplete for this command/argument position
+    return { suggestions: [] };
+  }
+  
+  /**
+   * Get available adventure IDs (cached for autocomplete)
+   */
+  private adventureIdsCache: string[] = [];
+  private adventureIdsCacheTime: number = 0;
+  private readonly CACHE_DURATION = 5000; // 5 seconds
+  
+  private async getAvailableAdventureIds(): Promise<string[]> {
+    const now = Date.now();
+    
+    // Return cached result if still valid
+    if (this.adventureIdsCache.length > 0 && (now - this.adventureIdsCacheTime) < this.CACHE_DURATION) {
+      return this.adventureIdsCache;
+    }
+    
+    try {
+      const response = await fetch('/api/adventures');
+      
+      if (!response.ok) {
+        return [];
+      }
+      
+      const data = await response.json();
+      
+      // Handle both response formats:
+      // 1. Direct array: [{id: "...", name: "..."}, ...]
+      // 2. Wrapped object: {success: true, adventures: [...]}
+      let adventures: any[] = [];
+      
+      if (Array.isArray(data)) {
+        adventures = data;
+      } else if (data.success && Array.isArray(data.adventures)) {
+        adventures = data.adventures;
+      } else {
+        return [];
+      }
+      
+      this.adventureIdsCache = adventures.map((adv: any) => adv.id);
+      this.adventureIdsCacheTime = now;
+      return this.adventureIdsCache;
+    } catch (error) {
+      console.error('[Autocomplete] Failed to fetch adventure IDs for autocomplete:', error);
+    }
+    
+    return [];
   }
 
   /**
@@ -678,16 +942,6 @@ export class CommandParser implements ICommandParser {
       commands: commandNames.sort(), 
       aliases: aliasNames.sort() 
     };
-  }
-
-  /**
-   * Get command name suggestions based on partial input
-   * Prioritizes space-separated command names over hyphenated aliases
-   * Supports partial matching of multi-word commands (e.g., "create adv" matches "create adventure")
-   */
-  private getCommandSuggestions(partial: string, mode: GameMode): string[] {
-    const { commands, aliases } = this.getCommandSuggestionsDetailed(partial, mode);
-    return [...commands, ...aliases];
   }
 
   /**
@@ -1152,6 +1406,7 @@ export class CommandParser implements ICommandParser {
           return {
             success: true,
             output: [
+              `CHAT_MODE_START:${npc.name}`,
               `Starting conversation with ${npc.name}...`,
               '',
               'You are now in chat mode. Your messages will be sent to the AI NPC.',
@@ -1185,6 +1440,7 @@ export class CommandParser implements ICommandParser {
           return {
             success: true,
             output: [
+              `CHAT_MODE_START:${npc.name}`,
               `Starting conversation with ${npc.name}...`,
               '',
               'You are now in chat mode. Your messages will be sent to the AI NPC.',
@@ -1480,6 +1736,142 @@ export class CommandParser implements ICommandParser {
       }
     });
 
+    // Item interaction commands
+    this.registerCommand({
+      name: 'take',
+      aliases: ['get', 'pickup'],
+      description: 'Pick up an item from the current location',
+      syntax: 'take <item>',
+      examples: ['take key', 'take "ancient sword"', 'get torch'],
+      mode: GameMode.Player,
+      handler: async (args: string[]) => {
+        if (args.length === 0) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'MISSING_ARGUMENT',
+              message: 'Item name required',
+              suggestion: 'Usage: take <item> (e.g., take key)'
+            }
+          };
+        }
+
+        if (!this.gameEngine) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'NO_ENGINE',
+              message: 'Game engine not initialized',
+              suggestion: 'Please restart the game'
+            }
+          };
+        }
+
+        const itemIdentifier = args.join(' ');
+        return await this.gameEngine.handleTake(itemIdentifier);
+      }
+    });
+
+    this.registerCommand({
+      name: 'drop',
+      aliases: ['put'],
+      description: 'Drop an item from your inventory',
+      syntax: 'drop <item>',
+      examples: ['drop key', 'drop "ancient sword"', 'put torch'],
+      mode: GameMode.Player,
+      handler: async (args: string[]) => {
+        if (args.length === 0) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'MISSING_ARGUMENT',
+              message: 'Item name required',
+              suggestion: 'Usage: drop <item> (e.g., drop key)'
+            }
+          };
+        }
+
+        if (!this.gameEngine) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'NO_ENGINE',
+              message: 'Game engine not initialized',
+              suggestion: 'Please restart the game'
+            }
+          };
+        }
+
+        const itemIdentifier = args.join(' ');
+        return await this.gameEngine.handleDrop(itemIdentifier);
+      }
+    });
+
+    this.registerCommand({
+      name: 'examine',
+      aliases: ['inspect', 'look at'],
+      description: 'Examine an item in detail',
+      syntax: 'examine <item>',
+      examples: ['examine key', 'examine "ancient sword"', 'inspect torch'],
+      mode: GameMode.Player,
+      handler: async (args: string[]) => {
+        if (args.length === 0) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'MISSING_ARGUMENT',
+              message: 'Item name required',
+              suggestion: 'Usage: examine <item> (e.g., examine key)'
+            }
+          };
+        }
+
+        if (!this.gameEngine) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'NO_ENGINE',
+              message: 'Game engine not initialized',
+              suggestion: 'Please restart the game'
+            }
+          };
+        }
+
+        const itemIdentifier = args.join(' ');
+        return await this.gameEngine.handleExamine(itemIdentifier);
+      }
+    });
+
+    this.registerCommand({
+      name: 'inventory',
+      aliases: ['inv', 'i'],
+      description: 'View your inventory',
+      syntax: 'inventory',
+      examples: ['inventory', 'inv', 'i'],
+      mode: GameMode.Player,
+      handler: async (_args: string[]) => {
+        if (!this.gameEngine) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'NO_ENGINE',
+              message: 'Game engine not initialized',
+              suggestion: 'Please restart the game'
+            }
+          };
+        }
+
+        return await this.gameEngine.handleInventory();
+      }
+    });
+
     this.registerCommand({
       name: 'sudo',
       aliases: [],
@@ -1569,6 +1961,44 @@ export class CommandParser implements ICommandParser {
             }
           };
         }
+      }
+    });
+
+    this.registerCommand({
+      name: 'edit adventure',
+      aliases: ['edit-adventure'],
+      description: 'Edit an adventure\'s metadata interactively',
+      syntax: 'edit adventure <adventure-id>',
+      examples: ['edit adventure demo-adventure'],
+      mode: GameMode.Admin,
+      handler: async (args: string[]) => {
+        // Only support interactive mode (ID-only invocation)
+        if (args.length !== 1) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'INVALID_ARGUMENTS',
+              message: 'Exactly one argument required: adventure-id',
+              suggestion: 'Usage: edit adventure <adventure-id>. This will open an interactive editor.'
+            }
+          };
+        }
+
+        if (!this.editSessionManager) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'EDIT_SESSION_NOT_AVAILABLE',
+              message: 'Interactive editing is not available',
+              suggestion: 'Please restart the application'
+            }
+          };
+        }
+
+        const adventureId = args[0];
+        return await this.editSessionManager.editAdventure(adventureId);
       }
     });
 
@@ -1811,18 +2241,29 @@ export class CommandParser implements ICommandParser {
         const validation = this.adminSystem.validateAdventure();
         
         if (!validation.isValid) {
+          console.log('[Save Adventure] Validation failed:', validation);
           const output = ['Cannot save adventure. The following errors must be fixed:', ''];
           validation.errors.forEach(error => {
             output.push(`  ✗ ${error}`);
           });
+          
+          // Build detailed error message
+          let errorMessage = 'Adventure validation failed';
+          if (validation.errors.length > 0) {
+            errorMessage = `Adventure validation failed: ${validation.errors.join('; ')}`;
+          } else {
+            errorMessage = 'Adventure validation failed: Unknown validation error (no errors reported but isValid=false)';
+          }
           
           return {
             success: false,
             output,
             error: {
               code: 'VALIDATION_FAILED',
-              message: 'Adventure validation failed',
-              suggestion: 'Fix the errors listed above and try again'
+              message: errorMessage,
+              suggestion: validation.errors.length > 0 
+                ? 'Fix the validation errors and try again' 
+                : 'Check the adventure configuration and try again'
             }
           };
         }
@@ -2200,13 +2641,33 @@ export class CommandParser implements ICommandParser {
       name: 'edit location',
       aliases: ['edit-location'],
       description: 'Edit a location property',
-      syntax: 'edit location <location-id> <property> <value>',
+      syntax: 'edit location <location-id> [<property> <value>]',
       examples: [
+        'edit location entrance-123',
         'edit location entrance-123 name "Grand Entrance"',
         'edit location hall-456 description "A vast hall with towering columns"'
       ],
       mode: GameMode.Admin,
       handler: async (args: string[]) => {
+        // If only ID provided, use interactive form mode
+        if (args.length === 1) {
+          if (!this.editSessionManager) {
+            return {
+              success: false,
+              output: [],
+              error: {
+                code: 'EDIT_SESSION_NOT_AVAILABLE',
+                message: 'Interactive editing is not available',
+                suggestion: 'Use the command-line format: edit location <location-id> <property> <value>'
+              }
+            };
+          }
+          
+          const locationId = args[0];
+          return await this.editSessionManager.editLocation(locationId);
+        }
+
+        // Traditional command-line mode (backward compatibility)
         if (args.length < 3) {
           return {
             success: false,
@@ -2214,7 +2675,7 @@ export class CommandParser implements ICommandParser {
             error: {
               code: 'MISSING_ARGUMENT',
               message: 'Three arguments required: location-id, property, value',
-              suggestion: 'Usage: edit-location <location-id> <property> <value>. Valid properties: name, description'
+              suggestion: 'Usage: edit location <location-id> <property> <value>. Valid properties: name, description. Or use: edit location <location-id> for interactive mode.'
             }
           };
         }
@@ -2409,8 +2870,11 @@ export class CommandParser implements ICommandParser {
       name: 'edit character personality',
       aliases: ['edit-personality', 'edit-character-personality'],
       description: 'Edit the personality of an AI character',
-      syntax: 'edit character personality <character-id> <new-personality>',
-      examples: ['edit character personality sage-123 "A mysterious oracle with cryptic wisdom"'],
+      syntax: 'edit character personality <character-id> [<new-personality>]',
+      examples: [
+        'edit character personality sage-123',
+        'edit character personality sage-123 "A mysterious oracle with cryptic wisdom"'
+      ],
       mode: GameMode.Admin,
       handler: async (args: string[]) => {
         if (args.length === 0) {
@@ -2420,23 +2884,32 @@ export class CommandParser implements ICommandParser {
             error: {
               code: 'MISSING_ARGUMENT',
               message: 'Character ID required',
-              suggestion: 'Usage: edit-character-personality <character-id> <new-personality>'
+              suggestion: 'Usage: edit-character-personality <character-id> [<new-personality>]. Omit personality for interactive mode.'
             }
           };
         }
 
-        if (args.length < 2) {
-          return {
-            success: false,
-            output: [],
-            error: {
-              code: 'MISSING_ARGUMENT',
-              message: 'New personality description required',
-              suggestion: 'Usage: edit-character-personality <character-id> <new-personality>'
-            }
-          };
+        // If only ID provided, use interactive form mode
+        if (args.length === 1) {
+          if (!this.editSessionManager) {
+            return {
+              success: false,
+              output: [],
+              error: {
+                code: 'EDIT_SESSION_NOT_AVAILABLE',
+                message: 'Interactive editing is not available',
+                suggestion: 'Use the command-line format: edit character personality <character-id> <new-personality>'
+              }
+            };
+          }
+          
+          const characterId = args[0];
+          
+          // Use the full character editor which includes personality field for AI characters
+          return await this.editSessionManager.editCharacter(characterId);
         }
 
+        // Traditional command-line mode (backward compatibility)
         const characterId = args[0];
         const newPersonality = args.slice(1).join(' ');
 
@@ -2465,6 +2938,44 @@ export class CommandParser implements ICommandParser {
             }
           };
         }
+      }
+    });
+
+    this.registerCommand({
+      name: 'edit character',
+      aliases: ['edit-character'],
+      description: 'Edit a character interactively',
+      syntax: 'edit character <character-id>',
+      examples: ['edit character sage-123'],
+      mode: GameMode.Admin,
+      handler: async (args: string[]) => {
+        // Only support interactive mode (ID-only invocation)
+        if (args.length !== 1) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'INVALID_ARGUMENTS',
+              message: 'Exactly one argument required: character-id',
+              suggestion: 'Usage: edit character <character-id>. This will open an interactive editor.'
+            }
+          };
+        }
+
+        if (!this.editSessionManager) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'EDIT_SESSION_NOT_AVAILABLE',
+              message: 'Interactive editing is not available',
+              suggestion: 'Please restart the application'
+            }
+          };
+        }
+
+        const characterId = args[0];
+        return await this.editSessionManager.editCharacter(characterId);
       }
     });
 
@@ -2598,7 +3109,7 @@ export class CommandParser implements ICommandParser {
       syntax: 'delete location <location-id>',
       examples: ['delete location entrance-123', 'delete location hall-456'],
       mode: GameMode.Admin,
-      handler: async (args: string[], context: GameContext) => {
+      handler: async (args: string[], _context: GameContext) => {
         if (args.length === 0) {
           return {
             success: false,
@@ -2656,7 +3167,7 @@ export class CommandParser implements ICommandParser {
       syntax: 'delete character <character-id>',
       examples: ['delete character guard-123', 'delete character sage-456'],
       mode: GameMode.Admin,
-      handler: async (args: string[], context: GameContext) => {
+      handler: async (args: string[], _context: GameContext) => {
         if (args.length === 0) {
           return {
             success: false,
@@ -2718,13 +3229,103 @@ export class CommandParser implements ICommandParser {
     });
 
     this.registerCommand({
+      name: 'create item',
+      aliases: ['add item'],
+      description: 'Create a new item in the selected location',
+      syntax: 'create item',
+      examples: ['create item'],
+      mode: GameMode.Admin,
+      handler: async (_args: string[]) => {
+        // Validate that an adventure is selected
+        const adventure = this.adminSystem.getCurrentAdventure();
+        if (!adventure) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'NO_ADVENTURE_SELECTED',
+              message: 'No adventure selected',
+              suggestion: 'Use "select adventure <id>" to select an adventure for editing.'
+            }
+          };
+        }
+
+        // Validate that a location is selected
+        const locationId = this.adminSystem.getCurrentLocationId();
+        if (!locationId) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'NO_LOCATION_SELECTED',
+              message: 'No location selected',
+              suggestion: 'Use "select location <id>" to select a location first.'
+            }
+          };
+        }
+
+        if (!this.editSessionManager) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'EDIT_SESSION_NOT_AVAILABLE',
+              message: 'Interactive editing is not available',
+              suggestion: 'Please restart the application'
+            }
+          };
+        }
+
+        return await this.editSessionManager.createItem();
+      }
+    });
+
+    this.registerCommand({
+      name: 'edit item',
+      aliases: ['modify item'],
+      description: 'Edit an item interactively',
+      syntax: 'edit item <item-id>',
+      examples: ['edit item key-123'],
+      mode: GameMode.Admin,
+      handler: async (args: string[]) => {
+        // Only support interactive mode (ID-only invocation)
+        if (args.length !== 1) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'INVALID_ARGUMENTS',
+              message: 'Exactly one argument required: item-id',
+              suggestion: 'Usage: edit item <item-id>. This will open an interactive editor.'
+            }
+          };
+        }
+
+        if (!this.editSessionManager) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'EDIT_SESSION_NOT_AVAILABLE',
+              message: 'Interactive editing is not available',
+              suggestion: 'Please restart the application'
+            }
+          };
+        }
+
+        const itemId = args[0];
+        return await this.editSessionManager.editItem(itemId);
+      }
+    });
+
+    this.registerCommand({
       name: 'delete item',
       aliases: ['del-item', 'delete-item'],
       description: 'Delete an item from the current adventure',
       syntax: 'delete item <item-id>',
       examples: ['delete item key-123', 'delete item sword-456'],
       mode: GameMode.Admin,
-      handler: async (args: string[], context: GameContext) => {
+      handler: async (args: string[], _context: GameContext) => {
         if (args.length === 0) {
           return {
             success: false,

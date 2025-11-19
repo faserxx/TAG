@@ -13,7 +13,9 @@ import {
   LocationRow,
   ExitRow,
   CharacterRow,
-  GameStateRow
+  GameStateRow,
+  ItemRow,
+  Item
 } from '../types/index.js';
 import { DatabasePersistence } from './persistence.js';
 
@@ -66,8 +68,11 @@ export class DataStore {
           [adventure.name, adventure.description, adventure.startLocationId, now, adventure.id]
         );
 
-        // Delete existing locations, exits, and characters
-        // First delete characters (to avoid foreign key issues)
+        // Delete existing locations, exits, characters, and items
+        // First delete items (to avoid foreign key issues)
+        this.db.run(`DELETE FROM items WHERE location_id IN 
+          (SELECT id FROM locations WHERE adventure_id = ?)`, [adventure.id]);
+        // Then delete characters
         this.db.run(`DELETE FROM characters WHERE location_id IN 
           (SELECT id FROM locations WHERE adventure_id = ?)`, [adventure.id]);
         // Then delete location exits
@@ -111,6 +116,15 @@ export class DataStore {
             `INSERT INTO characters (id, location_id, name, dialogue, is_ai_powered, personality, ai_config)
              VALUES (?, ?, ?, ?, ?, ?, ?)`,
             [character.id, locationId, character.name, JSON.stringify(character.dialogue), isAiPowered, personality, aiConfig]
+          );
+        }
+
+        // Insert items for this location
+        for (const item of location.items) {
+          this.db.run(
+            `INSERT INTO items (id, location_id, name, description)
+             VALUES (?, ?, ?, ?)`,
+            [item.id, locationId, item.name, item.description]
           );
         }
       }
@@ -201,13 +215,32 @@ export class DataStore {
             }
           }
 
+          // Load items for this location
+          const itemsResult = this.db.exec(
+            'SELECT * FROM items WHERE location_id = ?',
+            [locationRow.id]
+          );
+
+          const items: Item[] = [];
+          if (itemsResult.length > 0) {
+            const itemData = itemsResult[0];
+            for (const itemRow of itemData.values) {
+              const item = this.rowToObject<ItemRow>(itemData.columns, itemRow);
+              items.push({
+                id: item.id,
+                name: item.name,
+                description: item.description
+              });
+            }
+          }
+
           locations.set(locationRow.id, {
             id: locationRow.id,
             name: locationRow.name,
             description: locationRow.description,
             exits,
             characters,
-            items: []
+            items
           });
         }
       }

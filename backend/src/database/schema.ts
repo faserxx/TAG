@@ -48,6 +48,18 @@ CREATE TABLE IF NOT EXISTS characters (
 -- Index for querying AI characters
 CREATE INDEX IF NOT EXISTS idx_characters_ai_powered ON characters(is_ai_powered);
 
+-- Items table
+CREATE TABLE IF NOT EXISTS items (
+  id TEXT PRIMARY KEY,
+  location_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  description TEXT NOT NULL,
+  FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE CASCADE
+);
+
+-- Index for querying items by location
+CREATE INDEX IF NOT EXISTS idx_items_location ON items(location_id);
+
 -- Game state table (single row for current session)
 CREATE TABLE IF NOT EXISTS game_state (
   id INTEGER PRIMARY KEY CHECK (id = 1),

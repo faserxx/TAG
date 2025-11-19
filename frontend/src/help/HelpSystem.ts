@@ -554,5 +554,115 @@ this command.`,
       ],
       seeAlso: ['show locations', 'select location']
     });
+
+    this.helpPages.set('edit location', {
+      name: 'edit location',
+      synopsis: 'edit location <id> [property] [value]',
+      description: `Edit properties of an existing location in the selected adventure.
+This command supports two modes of operation:
+
+INTERACTIVE MODE (Recommended):
+  When you provide only the location ID, the system enters an interactive
+  form-based editing mode. You will be prompted field-by-field to update
+  each property. This mode is ideal for editing multi-line content like
+  descriptions and makes it easy to see current values.
+
+COMMAND-LINE MODE:
+  When you provide all arguments (ID, property, and value), the system
+  performs a direct edit without prompting. This mode is faster for
+  single-property updates but requires careful quoting for multi-word values.
+
+Editable Properties:
+  - name: The location's display name
+  - description: A detailed description of the location (multi-line supported)
+
+Multi-Line Input:
+  In interactive mode, when editing the description field, you can enter
+  multiple lines of text. Type END on its own line to finish entering
+  multi-line content.
+
+Cancellation:
+  In interactive mode, you can cancel the edit session at any time by:
+  - Typing "cancel" at any prompt
+  - Pressing Ctrl+C
+
+Keeping Values:
+  In interactive mode, press Enter without typing anything to keep the
+  current value of a field unchanged.
+
+Note: You must have an adventure selected using "select adventure" before
+using this command.
+
+Aliases: edit-location (deprecated)`,
+      options: [],
+      examples: [
+        { command: 'edit location 1', description: 'Enter interactive mode to edit location with ID 1' },
+        { command: 'edit location entrance', description: 'Enter interactive mode using location name' },
+        { command: 'edit location 1 name "Grand Entrance"', description: 'Directly change the name (command-line mode)' },
+        { command: 'edit location 1 description "A vast hall"', description: 'Directly change the description (command-line mode)' },
+        { command: 'edit-location 1', description: 'Using the deprecated hyphenated alias' }
+      ],
+      seeAlso: ['edit character', 'show locations', 'select location', 'add location']
+    });
+
+    this.helpPages.set('edit character', {
+      name: 'edit character',
+      synopsis: 'edit character <id> [property] [value]',
+      description: `Edit properties of an existing character in the selected adventure.
+This command supports two modes of operation:
+
+INTERACTIVE MODE (Recommended):
+  When you provide only the character ID, the system enters an interactive
+  form-based editing mode. You will be prompted field-by-field to update
+  each property. This mode is ideal for editing dialogue lines and makes
+  it easy to manage multiple dialogue entries.
+
+COMMAND-LINE MODE:
+  When you provide all arguments (ID, property, and value), the system
+  performs a direct edit without prompting. This mode is faster for
+  single-property updates but is limited for complex edits like dialogue.
+
+Editable Properties:
+  - name: The character's display name
+  - dialogue: The character's dialogue lines (interactive mode only)
+  - personality: AI personality description (for AI-powered characters only)
+
+Dialogue Editing (Interactive Mode):
+  When editing dialogue, you will be presented with three options:
+  - k (keep): Keep all existing dialogue lines unchanged
+  - e (edit): Edit individual dialogue lines one by one
+  - r (replace): Replace all dialogue with new lines
+
+  When replacing dialogue, type each line and press Enter. Type END on
+  its own line to finish entering dialogue.
+
+Multi-Line Input:
+  In interactive mode, when editing multi-line fields like personality,
+  you can enter multiple lines of text. Type END on its own line to
+  finish entering multi-line content.
+
+Cancellation:
+  In interactive mode, you can cancel the edit session at any time by:
+  - Typing "cancel" at any prompt
+  - Pressing Ctrl+C
+
+Keeping Values:
+  In interactive mode, press Enter without typing anything to keep the
+  current value of a field unchanged.
+
+Note: You must have an adventure selected using "select adventure" before
+using this command.
+
+Aliases: edit-character (deprecated)`,
+      options: [],
+      examples: [
+        { command: 'edit character 1', description: 'Enter interactive mode to edit character with ID 1' },
+        { command: 'edit character guard', description: 'Enter interactive mode using character name' },
+        { command: 'edit character 1 name "Temple Guardian"', description: 'Directly change the name (command-line mode)' },
+        { command: 'edit character 2 personality "Wise and mysterious"', description: 'Change AI personality (command-line mode)' },
+        { command: 'edit-character 1', description: 'Using the deprecated hyphenated alias' }
+      ],
+      seeAlso: ['edit location', 'show characters', 'add character', 'chat']
+    });
   }
 }
