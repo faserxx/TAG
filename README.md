@@ -1,6 +1,7 @@
 # Terminal Adventure Game
 
 A terminal-based text adventure game built with xterm.js. Experience interactive storytelling through a familiar command-line interface, with support for creating custom adventures through an administration mode.
+This project is 100% created with AI, Kiro specifically, and it was created for the hackaton Kiroween at DevPost (https://devpost.com/software/tag-terminal-adventure-game-on-steroids)
 
 ## Quick Start
 
