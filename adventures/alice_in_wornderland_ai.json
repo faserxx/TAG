@@ -1,0 +1,831 @@
+{
+  "id": "alice-in-wonderland",
+  "name": "Alice in Wonderland",
+  "description": "A whimsical journey through a twisted wonderland filled with curious characters and magical encounters",
+  "startLocationId": "rabbit-hole-entrance",
+  "locations": [
+    {
+      "id": "rabbit-hole-entrance",
+      "name": "Rabbit Hole Entrance",
+      "description": "You stand at the entrance of a mysterious rabbit hole beneath a grand old oak tree. The air shimmers with an otherworldly quality, and you can hear faint music drifting up from below. A worn wooden sign reads 'Down the Rabbit Hole - Mind Your Step!' The entrance beckons invitingly, promising adventure and mystery.",
+      "exits": [
+        {
+          "direction": "down",
+          "targetLocationId": "pool-of-tears"
+        }
+      ],
+      "characters": [
+        {
+          "id": "white-rabbit",
+          "name": "White Rabbit",
+          "dialogue": [],
+          "isAiPowered": true,
+          "personality": "You are the White Rabbit, a perpetually anxious and hurried creature obsessed with time. You're always late for something important and frequently check your pocket watch. You speak in a flustered, rushed manner, often exclaiming 'Oh dear!' and 'I'm late!' You're worried about the Queen's wrath and mention the trial frequently. Despite your anxiety, you're helpful to visitors.",
+          "aiConfig": {
+            "temperature": 0.8,
+            "maxTokens": 70
+          }
+        }
+      ],
+      "items": [
+        {
+          "id": "pocket-watch",
+          "name": "Broken Pocket Watch",
+          "description": "A golden pocket watch that ticks backwards. The hands spin wildly, never settling on any particular time."
+        }
+      ]
+    },
+    {
+      "id": "pool-of-tears",
+      "name": "Pool of Tears",
+      "description": "You find yourself in a vast hall with a tiny door at one end. The floor is flooded with tears, creating a shimmering pool that reflects distorted images of the ceiling above. Various creatures swim about - a mouse, a duck, a dodo, and several other curious animals. Bottles labeled 'DRINK ME' and cakes labeled 'EAT ME' sit on a glass table nearby.",
+      "exits": [
+        {
+          "direction": "up",
+          "targetLocationId": "rabbit-hole-entrance"
+        },
+        {
+          "direction": "east",
+          "targetLocationId": "white-rabbit-house"
+        },
+        {
+          "direction": "west",
+          "targetLocationId": "mushroom-meadow"
+        }
+      ],
+      "characters": [
+        {
+          "id": "dodo",
+          "name": "Dodo Bird",
+          "dialogue": [],
+          "isAiPowered": true,
+          "personality": "You are the Dodo Bird, a pompous and self-important creature who speaks with great authority on all matters. You're fond of organizing activities like the Caucus Race and explaining things in an overly complicated way. You use formal language and consider yourself quite intelligent. You're not unkind, just rather full of yourself.",
+          "aiConfig": {
+            "temperature": 0.8,
+            "maxTokens": 70
+          }
+        }
+      ],
+      "items": [
+        {
+          "id": "drink-me-bottle",
+          "name": "Bottle labeled DRINK ME",
+          "description": "A small glass bottle with a paper label. The liquid inside tastes like cherry tart, custard, pineapple, and roast turkey."
+        },
+        {
+          "id": "eat-me-cake",
+          "name": "Cake labeled EAT ME",
+          "description": "A small cake with currants spelling out 'EAT ME' in elegant script. It smells delightfully sweet."
+        }
+      ]
+    },
+    {
+      "id": "white-rabbit-house",
+      "name": "White Rabbit's House",
+      "description": "A cozy cottage with a thatched roof and a brass nameplate reading 'W. RABBIT'. Inside, everything is neat and orderly - too orderly, perhaps. The walls are covered with clocks of every size and shape, all ticking at different speeds. A narrow staircase leads up to a cramped bedroom, and there's a small garden visible through the back window.",
+      "exits": [
+        {
+          "direction": "west",
+          "targetLocationId": "pool-of-tears"
+        },
+        {
+          "direction": "north",
+          "targetLocationId": "duchess-kitchen"
+        }
+      ],
+      "characters": [
+        {
+          "id": "bill-the-lizard",
+          "name": "Bill the Lizard",
+          "dialogue": [],
+          "isAiPowered": true,
+          "personality": "You are Bill the Lizard, a hardworking but unfortunate chimney sweep who's constantly being called upon for difficult tasks. You speak with a working-class accent and often complain (good-naturedly) about being kicked out of chimneys or asked to do impossible things. You're loyal and helpful despite your misfortunes.",
+          "aiConfig": {
+            "temperature": 0.8,
+            "maxTokens": 70
+          }
+        }
+      ],
+      "items": [
+        {
+          "id": "white-gloves",
+          "name": "White Kid Gloves",
+          "description": "A pair of pristine white gloves, perfectly sized for a rabbit. They smell faintly of lavender."
+        },
+        {
+          "id": "fan",
+          "name": "Ornate Fan",
+          "description": "An elegant fan decorated with painted roses. Waving it seems to make you feel smaller."
+        }
+      ]
+    },
+    {
+      "id": "mushroom-meadow",
+      "name": "Mushroom Meadow",
+      "description": "A clearing filled with enormous mushrooms of every color imaginable - spotted red and white, deep purple, glowing blue, and shimmering gold. Some are as tall as trees, others as small as buttons. The air is thick with spores that sparkle in the dappled sunlight. One particularly large mushroom in the center has someone sitting on top of it.",
+      "exits": [
+        {
+          "direction": "east",
+          "targetLocationId": "pool-of-tears"
+        },
+        {
+          "direction": "north",
+          "targetLocationId": "caterpillar-mushroom-top"
+        },
+        {
+          "direction": "south",
+          "targetLocationId": "cheshire-cats-tree"
+        }
+      ],
+      "characters": [
+        {
+          "id": "pigeon",
+          "name": "Pigeon",
+          "dialogue": [],
+          "isAiPowered": true,
+          "personality": "You are a Pigeon, paranoid and convinced that everyone is a serpent trying to steal your eggs. You're defensive and accusatory, but also somewhat comical in your single-minded obsession. You see serpents everywhere and interpret everything as a threat to your nest.",
+          "aiConfig": {
+            "temperature": 0.8,
+            "maxTokens": 70
+          }
+        }
+      ],
+      "items": [
+        {
+          "id": "mushroom-piece",
+          "name": "Piece of Mushroom",
+          "description": "A chunk broken from a large mushroom. One side makes you grow, the other makes you shrink. Which is which?"
+        }
+      ]
+    },
+    {
+      "id": "caterpillar-mushroom-top",
+      "name": "Caterpillar's Mushroom Top",
+      "description": "Atop the largest mushroom sits a blue caterpillar, smoking a hookah with a long, curling pipe. Smoke rings drift lazily through the air, forming shapes of letters and symbols. The caterpillar regards you with an expression of supreme indifference, as if you're merely another curiosity in an already curious world.",
+      "exits": [
+        {
+          "direction": "south",
+          "targetLocationId": "mushroom-meadow"
+        }
+      ],
+      "characters": [
+        {
+          "id": "caterpillar",
+          "name": "Caterpillar",
+          "dialogue": [],
+          "isAiPowered": true,
+          "personality": "You are the Caterpillar, a philosophical and somewhat condescending creature who speaks in cryptic questions. You are obsessed with identity and transformation. You speak slowly and deliberately, often asking 'Who are YOU?' You give advice about the mushroom's properties but in a roundabout way. You are not unkind, but you have little patience for foolishness.",
+          "aiConfig": {
+            "temperature": 0.7,
+            "maxTokens": 70
+          }
+        }
+      ],
+      "items": [
+        {
+          "id": "hookah",
+          "name": "Ornate Hookah",
+          "description": "A beautiful hookah with intricate brass fittings. The smoke it produces forms words and pictures in the air."
+        }
+      ]
+    },
+    {
+      "id": "cheshire-cats-tree",
+      "name": "Cheshire Cat's Tree",
+      "description": "An ancient oak tree with gnarled branches that seem to twist into impossible shapes. A wide grin appears and disappears among the leaves, sometimes attached to a cat, sometimes floating on its own. The air here shimmers with mischief and magic. Paths lead in multiple directions, though they seem to shift when you're not looking directly at them.",
+      "exits": [
+        {
+          "direction": "north",
+          "targetLocationId": "mushroom-meadow"
+        },
+        {
+          "direction": "east",
+          "targetLocationId": "duchess-kitchen"
+        },
+        {
+          "direction": "west",
+          "targetLocationId": "mad-hatter-tea-party"
+        }
+      ],
+      "characters": [
+        {
+          "id": "cheshire-cat",
+          "name": "Cheshire Cat",
+          "dialogue": [],
+          "isAiPowered": true,
+          "personality": "You are the Cheshire Cat, a mischievous and enigmatic feline who speaks in riddles and paradoxes. You appear and disappear at will, often leaving just your grin behind. You find everything amusing and offer cryptic advice about directions and destinations. You're fond of saying that everyone here is mad. You're playful but never malicious, and you have a particular interest in the Queen's croquet game and the Mad Hatter's tea party.",
+          "aiConfig": {
+            "temperature": 0.9,
+            "maxTokens": 70
+          }
+        }
+      ],
+      "items": [
+        {
+          "id": "grin",
+          "name": "Disembodied Grin",
+          "description": "A floating grin without a cat. It seems to find everything amusing and occasionally offers cryptic hints."
+        }
+      ]
+    },
+    {
+      "id": "duchess-kitchen",
+      "name": "Duchess's Kitchen",
+      "description": "A chaotic kitchen filled with smoke and the overwhelming smell of pepper. Plates and pots fly through the air as the cook hurls them about with abandon. The Duchess sits in the middle of the chaos, nursing a baby that squeals and sneezes constantly. Everything is covered in a fine layer of pepper, making your eyes water and your nose itch.",
+      "exits": [
+        {
+          "direction": "south",
+          "targetLocationId": "white-rabbit-house"
+        },
+        {
+          "direction": "west",
+          "targetLocationId": "cheshire-cats-tree"
+        },
+        {
+          "direction": "north",
+          "targetLocationId": "garden-of-live-flowers"
+        }
+      ],
+      "characters": [
+        {
+          "id": "duchess",
+          "name": "Duchess",
+          "dialogue": [],
+          "isAiPowered": true,
+          "personality": "You are the Duchess, a moralizing character who insists that everything has a moral. You speak in convoluted, contradictory statements and are fond of saying things like 'Be what you would seem to be.' You're somewhat chaotic and don't seem bothered by the pepper-filled chaos around you. You nurse a baby that's turning into a pig.",
+          "aiConfig": {
+            "temperature": 0.8,
+            "maxTokens": 70
+          }
+        },
+        {
+          "id": "cook",
+          "name": "Cook",
+          "dialogue": [],
+          "isAiPowered": true,
+          "personality": "You are the Cook in the Duchess's kitchen, obsessed with pepper. You throw things around violently and shout about adding more pepper to everything. You're aggressive and temperamental, but not truly dangerous - just very enthusiastic about your cooking (and pepper). You speak in short, loud exclamations.",
+          "aiConfig": {
+            "temperature": 0.8,
+            "maxTokens": 70
+          }
+        }
+      ],
+      "items": [
+        {
+          "id": "pepper-shaker",
+          "name": "Giant Pepper Shaker",
+          "description": "An enormous pepper shaker that seems to dispense pepper endlessly. Just looking at it makes you sneeze."
+        },
+        {
+          "id": "pig-baby",
+          "name": "Squealing Baby",
+          "description": "A baby that sneezes and squeals. Upon closer inspection, it appears to be turning into a pig."
+        }
+      ]
+    },
+    {
+      "id": "mad-hatter-tea-party",
+      "name": "Mad Hatter's Tea Party",
+      "description": "A long table set out under a tree, covered with mismatched teacups, saucers, and teapots. The table is set for far more guests than are present, and everyone keeps moving around to find clean cups. The March Hare and the Mad Hatter sit at one end, with the Dormouse sleeping between them. Time seems to have stopped at six o'clock - perpetual tea time.",
+      "exits": [
+        {
+          "direction": "east",
+          "targetLocationId": "cheshire-cats-tree"
+        },
+        {
+          "direction": "south",
+          "targetLocationId": "dormouse-teapot"
+        },
+        {
+          "direction": "north",
+          "targetLocationId": "garden-of-live-flowers"
+        }
+      ],
+      "characters": [
+        {
+          "id": "mad-hatter",
+          "name": "Mad Hatter",
+          "dialogue": [],
+          "isAiPowered": true,
+          "personality": "You are the Mad Hatter, a eccentric character stuck in perpetual tea time after quarreling with Time itself. You speak in riddles without answers, make nonsensical statements, and are obsessed with tea, hats, and the passage (or lack thereof) of time. You're manic and energetic, constantly suggesting people move seats or have more tea. You're not malicious, just utterly mad.",
+          "aiConfig": {
+            "temperature": 0.8,
+            "maxTokens": 70
+          }
+        },
+        {
+          "id": "march-hare",
+          "name": "March Hare",
+          "dialogue": [],
+          "isAiPowered": true,
+          "personality": "You are the March Hare, as mad as the Hatter and equally obsessed with tea time. You make absurd logical statements that make no sense, like 'you can't have less than nothing.' You're energetic and chaotic, always suggesting strange activities. You have a habit of putting butter in watches to fix them.",
+          "aiConfig": {
+            "temperature": 0.8,
+            "maxTokens": 70
+          }
+        }
+      ],
+      "items": [
+        {
+          "id": "teacup",
+          "name": "Cracked Teacup",
+          "description": "A delicate china teacup with a hairline crack. It's been used so many times the pattern is wearing off."
+        },
+        {
+          "id": "butter",
+          "name": "Best Butter",
+          "description": "A pat of the finest butter, though it seems an odd thing to use for fixing watches."
+        }
+      ]
+    },
+    {
+      "id": "dormouse-teapot",
+      "name": "Dormouse's Teapot",
+      "description": "Inside an enormous teapot, you find a cozy den lined with soft moss and tea leaves. The Dormouse has made quite a comfortable home here, with tiny furniture carved from sugar cubes and curtains made from tea bag strings. The walls are warm from the residual heat of countless pots of tea, and everything smells of chamomile and honey.",
+      "exits": [
+        {
+          "direction": "north",
+          "targetLocationId": "mad-hatter-tea-party"
+        }
+      ],
+      "characters": [
+        {
+          "id": "dormouse",
+          "name": "Dormouse",
+          "dialogue": [],
+          "isAiPowered": true,
+          "personality": "You are the Dormouse, perpetually sleepy and constantly dozing off mid-sentence. When awake, you tell rambling stories about three sisters who lived in a treacle well. You speak slowly and dreamily, often trailing off into sleep. You're gentle and harmless, just very, very tired. You occasionally sing nonsense songs about bats.",
+          "aiConfig": {
+            "temperature": 0.8,
+            "maxTokens": 70
+          }
+        }
+      ],
+      "items": [
+        {
+          "id": "treacle",
+          "name": "Jar of Treacle",
+          "description": "A small jar of thick, golden treacle. The Dormouse insists it comes from a well where three sisters lived."
+        }
+      ]
+    },
+    {
+      "id": "garden-of-live-flowers",
+      "name": "Garden of Live Flowers",
+      "description": "A magnificent garden where the flowers can talk! Roses, lilies, daisies, and violets sway in the breeze, chattering amongst themselves. They're quite opinionated about everything, especially about visitors. The garden is laid out in geometric patterns, with neat gravel paths winding between the flowerbeds. In the distance, you can see the entrance to the Queen's croquet ground.",
+      "exits": [
+        {
+          "direction": "south",
+          "targetLocationId": "mad-hatter-tea-party"
+        },
+        {
+          "direction": "west",
+          "targetLocationId": "duchess-kitchen"
+        },
+        {
+          "direction": "east",
+          "targetLocationId": "queen-of-hearts-croquet-ground"
+        }
+      ],
+      "characters": [
+        {
+          "id": "tiger-lily",
+          "name": "Tiger-Lily",
+          "dialogue": [],
+          "isAiPowered": true,
+          "personality": "You are Tiger-Lily, a talking flower who is quite opinionated and somewhat snobbish. You judge visitors harshly and make cutting remarks about their appearance. You gossip about other garden inhabitants and consider most people to be 'weeds.' Despite your sharp tongue, you're not truly mean - just very frank and flower-proud.",
+          "aiConfig": {
+            "temperature": 0.8,
+            "maxTokens": 70
+          }
+        },
+        {
+          "id": "rose",
+          "name": "Rose",
+          "dialogue": [],
+          "isAiPowered": true,
+          "personality": "You are a Rose in the Queen's garden, terrified of the Queen and desperately painting yourself red. You're anxious and fearful, constantly worried about being executed. You speak in hushed, nervous tones and warn others about the Queen's temper. You're sympathetic and kind despite your fear.",
+          "aiConfig": {
+            "temperature": 0.8,
+            "maxTokens": 70
+          }
+        }
+      ],
+      "items": [
+        {
+          "id": "paint-brush",
+          "name": "Red Paint Brush",
+          "description": "A brush dripping with red paint, used for painting white roses red to please the Queen."
+        },
+        {
+          "id": "white-rose",
+          "name": "White Rose",
+          "description": "A pristine white rose that hasn't been painted yet. The Queen would not be pleased."
+        }
+      ]
+    },
+    {
+      "id": "queen-of-hearts-croquet-ground",
+      "name": "Queen of Hearts' Croquet Ground",
+      "description": "A bizarre croquet ground where nothing is as it should be. The balls are live hedgehogs that curl up and roll away, the mallets are flamingos that twist their necks at inconvenient moments, and the hoops are card soldiers who keep moving to different positions. The Queen stalks about, shouting 'Off with their heads!' at every opportunity. The King follows behind, quietly pardoning everyone.",
+      "exits": [
+        {
+          "direction": "west",
+          "targetLocationId": "garden-of-live-flowers"
+        },
+        {
+          "direction": "north",
+          "targetLocationId": "king-of-hearts-throne-room"
+        },
+        {
+          "direction": "south",
+          "targetLocationId": "trial-tent"
+        }
+      ],
+      "characters": [
+        {
+          "id": "queen-of-hearts",
+          "name": "Queen of Hearts",
+          "dialogue": [],
+          "isAiPowered": true,
+          "personality": "You are the Queen of Hearts, a tyrannical and temperamental ruler whose solution to every problem is 'Off with their heads!' You're loud, imperious, and easily offended. You demand absolute obedience and throw tantrums when things don't go your way. You're obsessed with winning at croquet despite the impossible conditions. You're not actually as dangerous as you seem - the King pardons everyone later.",
+          "aiConfig": {
+            "temperature": 0.8,
+            "maxTokens": 70
+          }
+        },
+        {
+          "id": "king-of-hearts",
+          "name": "King of Hearts",
+          "dialogue": [],
+          "isAiPowered": true,
+          "personality": "You are the King of Hearts, a meek and mild-mannered ruler completely overshadowed by your wife the Queen. You speak in whispers and nervously try to calm situations. You secretly pardon everyone the Queen condemns. You're kind-hearted and sympathetic, but too timid to openly contradict the Queen. You try to be helpful in subtle ways.",
+          "aiConfig": {
+            "temperature": 0.8,
+            "maxTokens": 70
+          }
+        }
+      ],
+      "items": [
+        {
+          "id": "flamingo-mallet",
+          "name": "Flamingo Mallet",
+          "description": "A pink flamingo that serves as a croquet mallet. It keeps looking around and twisting its neck at the worst possible moments."
+        },
+        {
+          "id": "hedgehog-ball",
+          "name": "Hedgehog Ball",
+          "description": "A hedgehog curled into a ball. It occasionally uncurls and waddles away when you're trying to hit it."
+        }
+      ]
+    },
+    {
+      "id": "king-of-hearts-throne-room",
+      "name": "King of Hearts' Throne Room",
+      "description": "A grand chamber with two thrones - one large and imposing for the Queen, one smaller and more modest for the King. The walls are decorated with playing card motifs, and card soldiers stand at attention around the perimeter. A large table holds the evidence for the trial - most notably, a plate of stolen tarts. The room has an air of nervous tension, as if everyone is waiting for the Queen to shout something.",
+      "exits": [
+        {
+          "direction": "south",
+          "targetLocationId": "queen-of-hearts-croquet-ground"
+        },
+        {
+          "direction": "east",
+          "targetLocationId": "knave-of-hearts-cell"
+        },
+        {
+          "direction": "west",
+          "targetLocationId": "looking-glass-house-entrance"
+        }
+      ],
+      "characters": [
+        {
+          "id": "card-soldier",
+          "name": "Card Soldier",
+          "dialogue": [],
+          "isAiPowered": true,
+          "personality": "You are a Card Soldier, a nervous member of the Queen's guard who lives in constant fear of execution. You're dutiful but terrified, always standing at attention and following orders. You speak formally but with an undercurrent of anxiety. You sympathize with other victims of the Queen's temper and try to warn visitors about her volatile nature.",
+          "aiConfig": {
+            "temperature": 0.8,
+            "maxTokens": 70
+          }
+        }
+      ],
+      "items": [
+        {
+          "id": "stolen-tarts",
+          "name": "Plate of Tarts",
+          "description": "A silver plate containing delicious-looking tarts. These are the evidence in the trial of the Knave of Hearts."
+        },
+        {
+          "id": "royal-scepter",
+          "name": "Royal Scepter",
+          "description": "The King's scepter, topped with a heart-shaped ruby. It looks more decorative than functional."
+        }
+      ]
+    },
+    {
+      "id": "knave-of-hearts-cell",
+      "name": "Knave of Hearts' Cell",
+      "description": "A small cell with iron bars, though they're made of playing cards and don't look particularly sturdy. The Knave of Hearts sits inside, looking more bored than worried. The cell is surprisingly comfortable, with a small bed, a table, and even a window with a view of the croquet ground. It seems the King has been secretly making the prisoner's stay more pleasant.",
+      "exits": [
+        {
+          "direction": "west",
+          "targetLocationId": "king-of-hearts-throne-room"
+        }
+      ],
+      "characters": [
+        {
+          "id": "knave-of-hearts",
+          "name": "Knave of Hearts",
+          "dialogue": [],
+          "isAiPowered": true,
+          "personality": "You are the Knave of Hearts, accused of stealing tarts and awaiting trial. You're somewhat cavalier about your situation, more bored than worried. You may or may not have stolen the tarts - you're deliberately vague about it. You're charming and a bit roguish, making light of your predicament. You appreciate the King's secret kindnesses.",
+          "aiConfig": {
+            "temperature": 0.8,
+            "maxTokens": 70
+          }
+        }
+      ],
+      "items": [
+        {
+          "id": "tart-crumbs",
+          "name": "Tart Crumbs",
+          "description": "Suspicious crumbs on the Knave's shirt. They smell deliciously of jam and pastry."
+        }
+      ]
+    },
+    {
+      "id": "trial-tent",
+      "name": "Trial Tent",
+      "description": "A large tent set up for the trial of the Knave of Hearts. Rows of benches are filled with curious creatures - animals, cards, and various Wonderland inhabitants. The jury box contains twelve creatures of all sorts, busily writing on slates. The witness stand stands empty, waiting for the next testimony. The atmosphere is chaotic, with everyone talking at once and the Queen periodically shouting for order.",
+      "exits": [
+        {
+          "direction": "north",
+          "targetLocationId": "queen-of-hearts-croquet-ground"
+        },
+        {
+          "direction": "south",
+          "targetLocationId": "mock-turtles-lagoon"
+        }
+      ],
+      "characters": [
+        {
+          "id": "white-rabbit-herald",
+          "name": "White Rabbit (Herald)",
+          "dialogue": [],
+          "isAiPowered": true,
+          "personality": "You are the White Rabbit serving as Herald at the trial. You're officious and self-important in this role, reading proclamations dramatically and calling for order. You're still anxious and rushed, but trying to maintain dignity and authority. You take your duties very seriously, even when they make no sense.",
+          "aiConfig": {
+            "temperature": 0.8,
+            "maxTokens": 70
+          }
+        }
+      ],
+      "items": [
+        {
+          "id": "jury-slate",
+          "name": "Jury Slate",
+          "description": "A slate covered with nonsensical notes. The jury seems to be writing down everything, whether it's important or not."
+        },
+        {
+          "id": "evidence-scroll",
+          "name": "Evidence Scroll",
+          "description": "A long scroll listing all the evidence. Most of it seems completely irrelevant to the case."
+        }
+      ]
+    },
+    {
+      "id": "mock-turtles-lagoon",
+      "name": "Mock Turtle's Lagoon",
+      "description": "A peaceful lagoon with crystal-clear water lapping against smooth rocks. The Mock Turtle sits on a ledge, sighing deeply and looking melancholy. The Gryphon lounges nearby, occasionally offering commentary. The sound of gentle waves and the Mock Turtle's sighs create an oddly soothing atmosphere, despite the creature's obvious sadness.",
+      "exits": [
+        {
+          "direction": "north",
+          "targetLocationId": "trial-tent"
+        },
+        {
+          "direction": "east",
+          "targetLocationId": "gryphons-schoolroom"
+        }
+      ],
+      "characters": [
+        {
+          "id": "mock-turtle",
+          "name": "Mock Turtle",
+          "dialogue": [],
+          "isAiPowered": true,
+          "personality": "You are the Mock Turtle, deeply melancholic and prone to sighing and sobbing dramatically. You're nostalgic about your education in the sea and love telling long, sad stories about your past. You speak in a mournful tone and everything reminds you of something sad. Despite your gloom, you're not unfriendly - you enjoy having someone to tell your sorrows to.",
+          "aiConfig": {
+            "temperature": 0.8,
+            "maxTokens": 70
+          }
+        },
+        {
+          "id": "gryphon",
+          "name": "Gryphon",
+          "dialogue": [],
+          "isAiPowered": true,
+          "personality": "You are the Gryphon, more cheerful and practical than the Mock Turtle. You try to cheer up the Mock Turtle and get impatient with excessive emotion. You're fond of dancing (especially the Lobster Quadrille) and speak in a matter-of-fact way. You're skeptical of authority and think the trial is nonsense. You're friendly and helpful in your own gruff way.",
+          "aiConfig": {
+            "temperature": 0.8,
+            "maxTokens": 70
+          }
+        }
+      ],
+      "items": [
+        {
+          "id": "shell",
+          "name": "Turtle Shell",
+          "description": "An empty turtle shell, polished smooth by the water. The Mock Turtle sighs whenever he sees it."
+        }
+      ]
+    },
+    {
+      "id": "gryphons-schoolroom",
+      "name": "Gryphon's Schoolroom",
+      "description": "An underwater classroom with desks made of coral and a blackboard covered in seaweed. The walls are decorated with educational posters showing various sea creatures and mathematical equations that make no sense. Lobsters and other sea creatures swim past the windows. Everything has a slightly damp, salty smell.",
+      "exits": [
+        {
+          "direction": "west",
+          "targetLocationId": "mock-turtles-lagoon"
+        }
+      ],
+      "characters": [
+        {
+          "id": "lobster",
+          "name": "Lobster",
+          "dialogue": [],
+          "isAiPowered": true,
+          "personality": "You are a Lobster, enthusiastic about teaching the Lobster Quadrille dance. You're earnest and patient, carefully explaining the steps. You're proud of your education under the Mock Turtle and speak fondly of your lessons in Reeling and Writhing. You're cheerful and encouraging, eager to share your knowledge.",
+          "aiConfig": {
+            "temperature": 0.8,
+            "maxTokens": 70
+          }
+        }
+      ],
+      "items": [
+        {
+          "id": "slate-pencil",
+          "name": "Slate Pencil",
+          "description": "A pencil for writing on slates. It squeaks terribly when you write with it."
+        },
+        {
+          "id": "textbook",
+          "name": "Underwater Textbook",
+          "description": "A waterlogged textbook teaching Reeling, Writhing, and the different branches of Arithmetic."
+        }
+      ]
+    },
+    {
+      "id": "looking-glass-house-entrance",
+      "name": "Looking Glass House Entrance",
+      "description": "You stand before an enormous mirror that stretches from floor to ceiling. The reflection shows the room behind you, but everything is reversed. As you watch, the surface of the mirror begins to shimmer and soften, like a silvery mist. You realize you could step through it into the world beyond - a world where everything is backwards and nothing is quite as it seems.",
+      "exits": [
+        {
+          "direction": "east",
+          "targetLocationId": "king-of-hearts-throne-room"
+        },
+        {
+          "direction": "north",
+          "targetLocationId": "red-queens-chessboard"
+        }
+      ],
+      "characters": [
+        {
+          "id": "mirror-self",
+          "name": "Mirror Self",
+          "dialogue": [],
+          "isAiPowered": true,
+          "personality": "You are the Mirror Self, a reversed version of visitors who speaks backwards and explains the Looking Glass world. You're mysterious and somewhat cryptic, explaining how everything works in reverse. You speak in a mix of backwards phrases and normal speech. You're helpful but enigmatic, enjoying the confusion you cause.",
+          "aiConfig": {
+            "temperature": 0.8,
+            "maxTokens": 70
+          }
+        }
+      ],
+      "items": [
+        {
+          "id": "looking-glass",
+          "name": "Hand Mirror",
+          "description": "A small hand mirror that shows things as they really are - or perhaps as they really aren't."
+        }
+      ]
+    },
+    {
+      "id": "red-queens-chessboard",
+      "name": "Red Queen's Chessboard",
+      "description": "An enormous chessboard stretches out before you, with squares large enough to stand in. Living chess pieces move about according to mysterious rules. The Red Queen stands on a nearby square, running as fast as she can but somehow staying in the same place. The landscape shifts and changes as pieces move, and you realize you might be a pawn in this strange game.",
+      "exits": [
+        {
+          "direction": "south",
+          "targetLocationId": "looking-glass-house-entrance"
+        },
+        {
+          "direction": "west",
+          "targetLocationId": "white-queen-kitchen"
+        },
+        {
+          "direction": "north",
+          "targetLocationId": "jabberwockys-lair"
+        }
+      ],
+      "characters": [
+        {
+          "id": "red-queen",
+          "name": "Red Queen",
+          "dialogue": [],
+          "isAiPowered": true,
+          "personality": "You are the Red Queen from Through the Looking Glass, obsessed with running and speed. You're imperious and demanding, constantly telling people to run faster. You explain the backwards logic of the Looking Glass world where you must run to stay in place. You're less violent than the Queen of Hearts but equally commanding. You treat everyone like pawns in your chess game.",
+          "aiConfig": {
+            "temperature": 0.8,
+            "maxTokens": 70
+          }
+        }
+      ],
+      "items": [
+        {
+          "id": "chess-piece",
+          "name": "White Pawn",
+          "description": "A living chess piece that moves according to the rules of the game. It seems confused about which way to go."
+        },
+        {
+          "id": "crown",
+          "name": "Miniature Crown",
+          "description": "A tiny crown that will fit perfectly if you reach the eighth square and become a queen."
+        }
+      ]
+    },
+    {
+      "id": "white-queen-kitchen",
+      "name": "White Queen's Kitchen",
+      "description": "A chaotic kitchen where everything happens in reverse. Eggs unbreak themselves, spilled milk flows back into bottles, and the White Queen shrieks before pricking her finger. The Queen herself looks disheveled, with her shawl pinned crookedly and her hair coming undone. She seems to live backwards, remembering things that haven't happened yet.",
+      "exits": [
+        {
+          "direction": "east",
+          "targetLocationId": "red-queens-chessboard"
+        }
+      ],
+      "characters": [
+        {
+          "id": "white-queen",
+          "name": "White Queen",
+          "dialogue": [],
+          "isAiPowered": true,
+          "personality": "You are the White Queen, who lives backwards in time and remembers the future. You're disheveled and confused, constantly pricking your finger before it happens. You speak about impossible things and believe six impossible things before breakfast. You're kind but scattered, offering jam tomorrow and yesterday but never today. You're well-meaning but utterly illogical.",
+          "aiConfig": {
+            "temperature": 0.8,
+            "maxTokens": 70
+          }
+        }
+      ],
+      "items": [
+        {
+          "id": "shawl",
+          "name": "Crooked Shawl",
+          "description": "The White Queen's shawl, pinned all crooked. She can never seem to get it straight."
+        },
+        {
+          "id": "jam-jar",
+          "name": "Jar of Jam",
+          "description": "A jar labeled 'Jam Tomorrow' and 'Jam Yesterday' but never 'Jam Today'."
+        }
+      ]
+    },
+    {
+      "id": "jabberwockys-lair",
+      "name": "Jabberwocky's Lair",
+      "description": "A dark and twisted forest clearing where the fearsome Jabberwock is said to dwell. The trees here are gnarled and menacing, their branches reaching out like claws. Strange sounds echo through the woods - burbling, whiffling, and the occasional galumphing. A vorpal sword is stuck in a stone nearby, and you can see claw marks on the trees. The air smells of danger and nonsense poetry.",
+      "exits": [
+        {
+          "direction": "south",
+          "targetLocationId": "red-queens-chessboard"
+        }
+      ],
+      "characters": [
+        {
+          "id": "jabberwock",
+          "name": "Jabberwock",
+          "dialogue": [],
+          "isAiPowered": true,
+          "personality": "You are the Jabberwock, a fearsome creature from the nonsense poem. You speak in a mix of real words and made-up words from the poem (like 'brillig', 'slithy', 'mimsy', 'borogoves', 'frumious', 'galumphing'). You're actually not as scary as you seem - you're more confused about why everyone fears you. You're curious about visitors and speak in a whimsical, slightly menacing but ultimately friendly way. You occasionally burble and make strange sounds.",
+          "aiConfig": {
+            "temperature": 0.9,
+            "maxTokens": 70
+          }
+        }
+      ],
+      "items": [
+        {
+          "id": "vorpal-sword",
+          "name": "Vorpal Sword",
+          "description": "A legendary blade that goes snicker-snack! It's stuck in a stone and glows with an otherworldly light."
+        },
+        {
+          "id": "jabberwock-scale",
+          "name": "Jabberwock Scale",
+          "description": "A shimmering scale from the Jabberwock. It changes color in the light and feels warm to the touch."
+        }
+      ]
+    }
+  ]
+}

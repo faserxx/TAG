@@ -423,6 +423,94 @@ terminal.onCommand(async (input: string) => {
     return;
   }
   
+  // Handle delete adventure confirmation prompt
+  if (result.success && result.output.includes('PROMPT_DELETE_ADVENTURE_CONFIRMATION')) {
+    // Extract adventure ID from the parsed command
+    const adventureId = parsed.args[0];
+    
+    // Extract adventure name from the confirmation message
+    // The format is: Delete adventure "Name" (id)?
+    let adventureName = adventureId;
+    const nameMatch = result.output.find(line => line.includes('Delete adventure "'));
+    if (nameMatch) {
+      const match = nameMatch.match(/Delete adventure "([^"]+)"/);
+      if (match) {
+        adventureName = match[1];
+      }
+    }
+    
+    // Display the confirmation message (skip the marker line)
+    const confirmationLines = result.output.filter(line => line !== 'PROMPT_DELETE_ADVENTURE_CONFIRMATION');
+    confirmationLines.forEach(line => {
+      terminal.writeLine(line, OutputStyle.System);
+    });
+    
+    terminal.promptConfirmation('', async (confirmed: boolean) => {
+      if (confirmed) {
+        terminal.showLoading('Deleting adventure');
+        
+        try {
+          // Get session ID for authentication
+          const sessionId = authManager.getSessionId();
+          if (!sessionId) {
+            terminal.hideLoading();
+            terminal.writeLine('Error: Authentication required', OutputStyle.Error);
+            terminal.writeLine('Your session may have expired. Use "sudo" to re-authenticate.', OutputStyle.Info);
+            terminal.write(gameContext.mode === GameMode.Admin ? '# ' : '$ ');
+            return;
+          }
+          
+          // Send DELETE request to backend
+          const response = await fetch(`/api/adventures/${adventureId}`, {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Session-ID': sessionId
+            }
+          });
+          
+          terminal.hideLoading();
+          
+          if (!response.ok) {
+            if (response.status === 404) {
+              terminal.writeLine(`Error: Adventure '${adventureId}' not found`, OutputStyle.Error);
+              terminal.writeLine('Use "list adventures" to see available adventures.', OutputStyle.Info);
+            } else if (response.status === 401) {
+              terminal.writeLine('Error: Authentication required to delete adventures', OutputStyle.Error);
+              terminal.writeLine('Your session may have expired. Use "sudo" to re-authenticate.', OutputStyle.Info);
+            } else {
+              const errorText = await response.text();
+              terminal.writeLine(`Error: Failed to delete adventure (${response.status})`, OutputStyle.Error);
+              terminal.writeLine('Please try again later or contact support.', OutputStyle.Info);
+              console.error('Delete adventure error:', errorText);
+            }
+          } else {
+            // Backend returns 204 No Content, so no JSON to parse
+            terminal.writeLine(`✓ Adventure "${adventureName}" deleted successfully`, OutputStyle.Success);
+            terminal.writeLine('', OutputStyle.Normal);
+          }
+        } catch (error) {
+          terminal.hideLoading();
+          
+          if (error instanceof TypeError && error.message.includes('fetch')) {
+            terminal.writeLine('Error: Failed to connect to server', OutputStyle.Error);
+            terminal.writeLine('Check your connection and try again.', OutputStyle.Info);
+          } else {
+            terminal.writeLine('Error: Failed to delete adventure', OutputStyle.Error);
+            terminal.writeLine('An unexpected error occurred. Please try again.', OutputStyle.Info);
+            console.error('Delete adventure error:', error);
+          }
+        }
+      } else {
+        terminal.writeLine('Deletion cancelled.', OutputStyle.Info);
+        terminal.writeLine('', OutputStyle.Normal);
+      }
+      
+      terminal.write(gameContext.mode === GameMode.Admin ? '# ' : '$ ');
+    });
+    return;
+  }
+  
   // Handle exit confirmation prompt
   if (result.success && result.output.includes('PROMPT_EXIT_CONFIRMATION')) {
     terminal.promptConfirmation('Are you sure you want to exit?', (confirmed: boolean) => {

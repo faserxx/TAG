@@ -531,7 +531,7 @@ export class CommandParser implements ICommandParser {
             // Check if this command expects arguments
             const resolvedCmd = this.aliases.get(potentialCommand) || potentialCommand;
             const locationIdCommands = ['edit location', 'remove connection', 'delete location'];
-            const adventureIdCommands = ['load', 'select adventure', 'edit adventure'];
+            const adventureIdCommands = ['load', 'select adventure', 'edit adventure', 'delete adventure'];
             const characterIdCommands = ['edit character', 'edit character personality'];
             const itemIdCommands = ['edit item', 'delete item'];
             const itemPlayerCommands = ['examine', 'take', 'drop'];
@@ -577,7 +577,7 @@ export class CommandParser implements ICommandParser {
     
     // Define commands that support entity ID autocomplete
     const locationIdCommands = ['edit location', 'remove connection', 'delete location'];
-    const adventureIdCommands = ['load', 'select adventure', 'edit adventure', 'export'];
+    const adventureIdCommands = ['load', 'select adventure', 'edit adventure', 'export', 'delete adventure'];
     const characterIdCommands = ['edit character', 'edit character personality'];
     
     // LOCATION ID AUTOCOMPLETE
@@ -2944,6 +2944,156 @@ export class CommandParser implements ICommandParser {
           ],
           error: undefined
         };
+      }
+    });
+
+    this.registerCommand({
+      name: 'delete adventure',
+      aliases: ['del-adventure', 'delete-adventure'],
+      description: 'Delete an adventure from the system',
+      syntax: 'delete adventure <adventure-id>',
+      examples: ['delete adventure demo-adventure', 'del-adventure my-adventure-123'],
+      mode: GameMode.Admin,
+      handler: async (args: string[], _context: GameContext) => {
+        // Task 2: Argument validation
+        if (args.length === 0) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'MISSING_ARGUMENT',
+              message: 'Adventure ID required',
+              suggestion: 'Usage: delete adventure <adventure-id>. Use "list adventures" to see available adventures.'
+            }
+          };
+        }
+
+        const adventureId = args[0];
+
+        // Task 3: Current adventure protection
+        const currentAdventure = this.adminSystem.getCurrentAdventure();
+        if (currentAdventure && currentAdventure.id === adventureId) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'ADVENTURE_SELECTED',
+              message: 'Cannot delete currently selected adventure',
+              suggestion: 'Use "deselect adventure" first, then try again.'
+            }
+          };
+        }
+
+        // Task 4: Adventure lookup for confirmation
+        if (!this.authManager) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'NO_AUTH_MANAGER',
+              message: 'Authentication system not initialized',
+              suggestion: 'Please restart the application'
+            }
+          };
+        }
+
+        const sessionId = this.authManager.getSessionId();
+        if (!sessionId) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'UNAUTHORIZED',
+              message: 'Authentication required to delete adventures',
+              suggestion: 'Your session may have expired. Use "sudo" to re-authenticate.'
+            }
+          };
+        }
+
+        try {
+          // Fetch adventure details to get the name for confirmation
+          const response = await fetch(`/api/adventures/${adventureId}`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Session-ID': sessionId
+            }
+          });
+
+          if (!response.ok) {
+            if (response.status === 404) {
+              return {
+                success: false,
+                output: [],
+                error: {
+                  code: 'ADVENTURE_NOT_FOUND',
+                  message: `Adventure '${adventureId}' not found`,
+                  suggestion: 'Use "list adventures" to see available adventures.'
+                }
+              };
+            }
+
+            if (response.status === 401) {
+              return {
+                success: false,
+                output: [],
+                error: {
+                  code: 'UNAUTHORIZED',
+                  message: 'Authentication required to delete adventures',
+                  suggestion: 'Your session may have expired. Use "sudo" to re-authenticate.'
+                }
+              };
+            }
+
+            throw new Error(`Failed to fetch adventure: ${response.statusText}`);
+          }
+
+          const adventureData = await response.json();
+          const adventureName = adventureData.name || adventureId;
+
+          // Return confirmation prompt
+          return {
+            success: true,
+            output: [
+              'PROMPT_DELETE_ADVENTURE_CONFIRMATION',
+              `Delete adventure "${adventureName}" (${adventureId})?`,
+              '',
+              '⚠️  WARNING: This action is permanent and cannot be undone.',
+              '',
+              'This will permanently delete:',
+              `  • Adventure: ${adventureName}`,
+              `  • All locations (${adventureData.locations?.size || 0})`,
+              '  • All characters',
+              '  • All items',
+              '  • All connections',
+              '',
+              'Type "yes" to confirm deletion, or anything else to cancel.'
+            ],
+            error: undefined
+          };
+        } catch (error) {
+          if (error instanceof TypeError && error.message.includes('fetch')) {
+            return {
+              success: false,
+              output: [],
+              error: {
+                code: 'NETWORK_ERROR',
+                message: 'Failed to connect to server',
+                suggestion: 'Check your connection and try again.'
+              }
+            };
+          }
+
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'SERVER_ERROR',
+              message: error instanceof Error ? error.message : 'Server error occurred while deleting adventure',
+              suggestion: 'Please try again later or contact support.'
+            }
+          };
+        }
       }
     });
 

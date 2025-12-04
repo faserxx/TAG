@@ -76,10 +76,9 @@ networks:
   frontend:
     driver: bridge
   
-  # Backend network - internal only, nginx to app
+  # Backend network - nginx to app (allows external connectivity for LMStudio)
   backend:
     driver: bridge
-    internal: true
 
 volumes:
   # Persistent game data (database)
