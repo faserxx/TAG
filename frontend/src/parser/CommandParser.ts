@@ -577,7 +577,7 @@ export class CommandParser implements ICommandParser {
     
     // Define commands that support entity ID autocomplete
     const locationIdCommands = ['edit location', 'remove connection', 'delete location'];
-    const adventureIdCommands = ['load', 'select adventure', 'edit adventure'];
+    const adventureIdCommands = ['load', 'select adventure', 'edit adventure', 'export'];
     const characterIdCommands = ['edit character', 'edit character personality'];
     
     // LOCATION ID AUTOCOMPLETE
@@ -614,27 +614,35 @@ export class CommandParser implements ICommandParser {
       return { suggestions: matches };
     }
     
-    // ADVENTURE ID AUTOCOMPLETE
+    // ADVENTURE ID/NAME AUTOCOMPLETE
     if (adventureIdCommands.includes(resolvedCommand) && argIndex === 1) {
-      // Get adventure IDs from API
-      let adventureIds: string[] = [];
+      // Export command uses adventure names, others use IDs
+      const useNames = resolvedCommand === 'export';
+      let suggestions: string[] = [];
       
       try {
-        adventureIds = await this.getAvailableAdventureIds();
+        if (useNames) {
+          suggestions = await this.getAvailableAdventureNames();
+        } else {
+          suggestions = await this.getAvailableAdventureIds();
+        }
       } catch (error) {
-        console.error('[Autocomplete] Failed to fetch adventure IDs:', error);
+        console.error('[Autocomplete] Failed to fetch adventure data:', error);
         return { suggestions: [] };
       }
       
-      // Filter adventure IDs based on partial input
-      const matches = adventureIds.filter(id => 
-        id.toLowerCase().startsWith(partialInput.toLowerCase())
+      // Filter based on partial input
+      const matches = suggestions.filter(item => 
+        item.toLowerCase().startsWith(partialInput.toLowerCase())
       );
 
       // If exactly one match, return as completion with full command
       if (matches.length === 1) {
         const commandPart = tokens.slice(0, commandTokenCount).join(' ');
-        const fullCompletion = `${commandPart} ${matches[0]}`;
+        // Quote the name if it contains spaces
+        const needsQuotes = matches[0].includes(' ');
+        const quotedMatch = needsQuotes ? `"${matches[0]}"` : matches[0];
+        const fullCompletion = `${commandPart} ${quotedMatch}`;
         
         return {
           suggestions: matches,
@@ -717,6 +725,41 @@ export class CommandParser implements ICommandParser {
       }
 
       return { suggestions: matches };
+    }
+    
+    // CHARACTER NAME AUTOCOMPLETE (Player commands - talk, chat)
+    const talkCommands = ['talk', 'chat'];
+    if (talkCommands.includes(resolvedCommand) && argIndex === 1) {
+      // Only provide autocomplete in player mode when in a location
+      if (context.mode !== GameMode.Player || !this.gameEngine) {
+        return { suggestions: [] };
+      }
+
+      const currentLocation = this.gameEngine.getCurrentLocation();
+      if (!currentLocation) {
+        return { suggestions: [] };
+      }
+
+      // Get character names from current location
+      const characters = currentLocation.getCharacters();
+      const characterNames = characters.map(char => char.name);
+
+      // Filter based on partial input (match from start of name)
+      const filtered = characterNames.filter(name =>
+        name.toLowerCase().startsWith(partialInput.toLowerCase())
+      );
+
+      // If exactly one match, provide completion with full command
+      if (filtered.length === 1) {
+        const completedCommand = `${resolvedCommand} ${filtered[0]}`;
+        return {
+          suggestions: filtered,
+          completionText: completedCommand
+        };
+      }
+
+      // Multiple matches - show suggestions
+      return { suggestions: filtered };
     }
     
     // ITEM AUTOCOMPLETE (Player commands - examine, take, drop)
@@ -825,6 +868,7 @@ export class CommandParser implements ICommandParser {
    * Get available adventure IDs (cached for autocomplete)
    */
   private adventureIdsCache: string[] = [];
+  private adventureNamesCache: string[] = [];
   private adventureIdsCacheTime: number = 0;
   private readonly CACHE_DURATION = 5000; // 5 seconds
   
@@ -859,6 +903,7 @@ export class CommandParser implements ICommandParser {
       }
       
       this.adventureIdsCache = adventures.map((adv: any) => adv.id);
+      this.adventureNamesCache = adventures.map((adv: any) => adv.name);
       this.adventureIdsCacheTime = now;
       return this.adventureIdsCache;
     } catch (error) {
@@ -866,6 +911,15 @@ export class CommandParser implements ICommandParser {
     }
     
     return [];
+  }
+
+  /**
+   * Get available adventure names (cached for autocomplete)
+   */
+  private async getAvailableAdventureNames(): Promise<string[]> {
+    // Fetch IDs first to populate both caches
+    await this.getAvailableAdventureIds();
+    return this.adventureNamesCache;
   }
 
   /**
@@ -2296,6 +2350,372 @@ export class CommandParser implements ICommandParser {
               code: 'SAVE_FAILED',
               message: error instanceof Error ? error.message : 'Failed to save adventure',
               suggestion: 'Please try again or check the server logs'
+            }
+          };
+        }
+      }
+    });
+
+    // Export adventure command
+    this.registerCommand({
+      name: 'export',
+      aliases: ['export-adventure'],
+      description: 'Export adventure to JSON file',
+      syntax: 'export <adventure-name>',
+      examples: ['export demo-adventure', 'export "My Adventure"'],
+      mode: GameMode.Admin,
+      handler: async (args: string[]) => {
+        if (args.length === 0) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'MISSING_ARGUMENT',
+              message: 'Adventure name required',
+              suggestion: 'Usage: export <adventure-name>'
+            }
+          };
+        }
+
+        if (!this.authManager) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'NO_AUTH',
+              message: 'Authentication manager not available',
+              suggestion: 'Please restart the application'
+            }
+          };
+        }
+
+        const sessionId = this.authManager.getSessionId();
+        if (!sessionId) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'NOT_AUTHENTICATED',
+              message: 'Not authenticated',
+              suggestion: 'Please use "sudo" to authenticate first'
+            }
+          };
+        }
+
+        try {
+          const adventureName = args.join(' ');
+          
+          // Get list of adventures to find the ID
+          const adventures = await this.adminSystem.listAdventures();
+          const adventure = adventures.find(adv => adv.name === adventureName || adv.id === adventureName);
+          
+          if (!adventure) {
+            const availableNames = adventures.map(adv => adv.name).join(', ');
+            return {
+              success: false,
+              output: [],
+              error: {
+                code: 'ADVENTURE_NOT_FOUND',
+                message: `Adventure "${adventureName}" not found`,
+                suggestion: availableNames ? `Available adventures: ${availableNames}` : 'Use "list adventures" to see available adventures'
+              }
+            };
+          }
+
+          // Call export API
+          const response = await fetch(`/api/adventures/${adventure.id}/export`, {
+            method: 'GET',
+            headers: {
+              'x-session-id': sessionId
+            }
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            return {
+              success: false,
+              output: [],
+              error: {
+                code: error.code || 'EXPORT_FAILED',
+                message: error.message || 'Failed to export adventure',
+                suggestion: error.suggestion || 'Please try again'
+              }
+            };
+          }
+
+          // Trigger download
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${adventure.id}.json`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+
+          return {
+            success: true,
+            output: [`Adventure "${adventure.name}" exported successfully!`, `File: ${adventure.id}.json`],
+            error: undefined
+          };
+        } catch (error) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'EXPORT_ERROR',
+              message: error instanceof Error ? error.message : 'Failed to export adventure',
+              suggestion: 'Please try again or check the server logs'
+            }
+          };
+        }
+      }
+    });
+
+    // Import adventure command
+    this.registerCommand({
+      name: 'import',
+      aliases: ['import-adventure'],
+      description: 'Import adventure from JSON file',
+      syntax: 'import',
+      examples: ['import'],
+      mode: GameMode.Admin,
+      handler: async (_args: string[]) => {
+        if (!this.authManager) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'NO_AUTH',
+              message: 'Authentication manager not available',
+              suggestion: 'Please restart the application'
+            }
+          };
+        }
+
+        const sessionId = this.authManager.getSessionId();
+        if (!sessionId) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'NOT_AUTHENTICATED',
+              message: 'Not authenticated',
+              suggestion: 'Please use "sudo" to authenticate first'
+            }
+          };
+        }
+
+        try {
+          // Create file input element
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = '.json';
+          
+          return new Promise<CommandResult>((resolve) => {
+            input.onchange = async (e) => {
+              const file = (e.target as HTMLInputElement).files?.[0];
+              if (!file) {
+                resolve({
+                  success: false,
+                  output: [],
+                  error: {
+                    code: 'NO_FILE',
+                    message: 'No file selected',
+                    suggestion: 'Please select a JSON file to import'
+                  }
+                });
+                return;
+              }
+
+              try {
+                const text = await file.text();
+                const adventureJson = JSON.parse(text);
+
+                // Call import API
+                const response = await fetch('/api/adventures/import', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'x-session-id': sessionId
+                  },
+                  body: JSON.stringify(adventureJson)
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                  // Check if it's a duplicate adventure error
+                  const isDuplicate = data.errors && Array.isArray(data.errors) && 
+                    data.errors.some((err: any) => err.field === 'name' && err.message.includes('already exists'));
+                  
+                  if (isDuplicate) {
+                    // Ask user if they want to replace using window.confirm for retro feel
+                    const userConfirmed = window.confirm(
+                      `Adventure "${adventureJson.name}" already exists.\n\nReplace existing adventure?`
+                    );
+                    
+                    if (userConfirmed) {
+                      // Retry import with replace=true
+                      const retryResponse = await fetch('/api/adventures/import?replace=true', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'x-session-id': sessionId
+                        },
+                        body: JSON.stringify(adventureJson)
+                      });
+                      
+                      const retryData = await retryResponse.json();
+                      
+                      if (!retryResponse.ok) {
+                        const errorOutput = ['Import failed:', ''];
+                        if (retryData.errors && Array.isArray(retryData.errors)) {
+                          retryData.errors.forEach((err: any) => {
+                            errorOutput.push(`  ✗ ${err.field}: ${err.message}`);
+                          });
+                        }
+                        
+                        resolve({
+                          success: false,
+                          output: errorOutput,
+                          error: {
+                            code: retryData.code || 'IMPORT_FAILED',
+                            message: retryData.message || 'Failed to import adventure',
+                            suggestion: retryData.suggestion || 'Check the validation errors and fix the JSON file'
+                          }
+                        });
+                        return;
+                      }
+                      
+                      resolve({
+                        success: true,
+                        output: [
+                          `Adventure "${retryData.adventure.name}" replaced successfully!`,
+                          `ID: ${retryData.adventure.id}`,
+                          `Locations: ${retryData.adventure.locations ? Object.keys(retryData.adventure.locations).length : 0}`
+                        ],
+                        error: undefined
+                      });
+                      return;
+                    } else {
+                      resolve({
+                        success: false,
+                        output: ['Import cancelled by user'],
+                        error: undefined
+                      });
+                      return;
+                    }
+                  }
+                  
+                  // Not a duplicate or terminal not available - show regular error
+                  const errorOutput = ['Import failed:', ''];
+                  if (data.errors && Array.isArray(data.errors)) {
+                    data.errors.forEach((err: any) => {
+                      errorOutput.push(`  ✗ ${err.field}: ${err.message}`);
+                    });
+                  }
+                  
+                  resolve({
+                    success: false,
+                    output: errorOutput,
+                    error: {
+                      code: data.code || 'IMPORT_FAILED',
+                      message: data.message || 'Failed to import adventure',
+                      suggestion: data.suggestion || 'Check the validation errors and fix the JSON file'
+                    }
+                  });
+                  return;
+                }
+
+                resolve({
+                  success: true,
+                  output: [
+                    `Adventure "${data.adventure.name}" imported successfully!`,
+                    `ID: ${data.adventure.id}`,
+                    `Locations: ${data.adventure.locations ? Object.keys(data.adventure.locations).length : 0}`
+                  ],
+                  error: undefined
+                });
+              } catch (error) {
+                resolve({
+                  success: false,
+                  output: [],
+                  error: {
+                    code: 'IMPORT_ERROR',
+                    message: error instanceof Error ? error.message : 'Failed to import adventure',
+                    suggestion: 'Make sure the file is a valid JSON adventure file'
+                  }
+                });
+              }
+            };
+
+            input.click();
+          });
+        } catch (error) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'IMPORT_ERROR',
+              message: error instanceof Error ? error.message : 'Failed to import adventure',
+              suggestion: 'Please try again'
+            }
+          };
+        }
+      }
+    });
+
+    // Schema download command
+    this.registerCommand({
+      name: 'schema',
+      aliases: ['download-schema', 'get-schema'],
+      description: 'Download JSON schema for adventure format',
+      syntax: 'schema',
+      examples: ['schema'],
+      mode: GameMode.Admin,
+      handler: async (_args: string[]) => {
+        try {
+          // Call schema API
+          const response = await fetch('/api/schema');
+
+          if (!response.ok) {
+            return {
+              success: false,
+              output: [],
+              error: {
+                code: 'SCHEMA_FAILED',
+                message: 'Failed to download schema',
+                suggestion: 'Please try again'
+              }
+            };
+          }
+
+          // Trigger download
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'adventure-schema.json';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+
+          return {
+            success: true,
+            output: ['JSON schema downloaded successfully!', 'File: adventure-schema.json'],
+            error: undefined
+          };
+        } catch (error) {
+          return {
+            success: false,
+            output: [],
+            error: {
+              code: 'SCHEMA_ERROR',
+              message: error instanceof Error ? error.message : 'Failed to download schema',
+              suggestion: 'Please try again'
             }
           };
         }

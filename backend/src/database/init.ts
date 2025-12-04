@@ -102,9 +102,10 @@ export async function initializeAdminCredentials(db: Database): Promise<void> {
     }
   }
 
-  // Create default admin password: "admin"
+  // Use ADMIN_PASSWORD environment variable or default to "admin123"
+  const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
   const salt = await bcrypt.genSalt(10);
-  const passwordHash = await bcrypt.hash('admin', salt);
+  const passwordHash = await bcrypt.hash(adminPassword, salt);
 
   db.run(
     `INSERT INTO admin_credentials (id, password_hash, salt) 
@@ -112,7 +113,7 @@ export async function initializeAdminCredentials(db: Database): Promise<void> {
     [passwordHash, salt]
   );
 
-  console.log('Admin credentials initialized (default password: "admin")');
+  console.log(`Admin credentials initialized (password from ${process.env.ADMIN_PASSWORD ? 'ADMIN_PASSWORD env var' : 'default'})`);
 }
 
 /**

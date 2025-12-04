@@ -96,6 +96,398 @@ npm start
 
 The application will be available at http://localhost:3001
 
+## Docker Deployment
+
+### Prerequisites
+
+- Docker 20.10+ and Docker Compose 2.0+
+
+### Docker Build
+
+#### Building Images
+
+Build all Docker images using the provided build scripts:
+
+**Linux/Mac:**
+```bash
+./build-docker.sh
+```
+
+**Windows (PowerShell):**
+```powershell
+.\build-docker.ps1
+```
+
+**With version tag:**
+```bash
+./build-docker.sh 1.0.0
+```
+
+**Multi-architecture build:**
+```bash
+./build-docker.sh 1.0.0 --platform linux/amd64,linux/arm64
+```
+
+The build script will create three Docker images:
+- `terminal-adventure-game` - Application container (frontend + backend)
+- `adventure-game-nginx` - Nginx reverse proxy with ModSecurity WAF
+- `adventure-game-fail2ban` - Fail2ban intrusion prevention
+
+#### Exporting Images for Transfer
+
+To export images for deployment on another Docker host:
+
+**Linux/Mac:**
+```bash
+./export-docker-images.sh
+```
+
+**Windows (PowerShell):**
+```powershell
+.\export-docker-images.ps1
+```
+
+This creates a `.tar` file containing all three images. The file will be named with a timestamp (e.g., `terminal-adventure-game-20231204_153045.tar`).
+
+**Transfer and import on remote host:**
+
+1. **Transfer the tar file:**
+```bash
+scp terminal-adventure-game-*.tar user@remote-host:/path/to/destination/
+```
+
+2. **Import images on remote host:**
+```bash
+docker load -i terminal-adventure-game-*.tar
+```
+
+3. **Copy configuration files to remote host:**
+```bash
+# Use docker-compose.prod.yml for pre-built images (no source code needed)
+scp docker-compose.prod.yml .env user@remote-host:/path/to/app/
+```
+
+4. **Start services on remote host:**
+```bash
+cd /path/to/app
+docker compose -f docker-compose.prod.yml up -d
+```
+
+**Note:** Use `docker-compose.prod.yml` on remote hosts where you've imported pre-built images. The regular `docker-compose.yml` is for building from source.
+
+**Alternative: Export individual images**
+
+If you need to export images separately:
+```bash
+# Export individual images
+docker save -o app.tar terminal-adventure-game:latest
+docker save -o nginx.tar adventure-game-nginx:latest
+docker save -o fail2ban.tar adventure-game-fail2ban:latest
+
+# Import on remote host
+docker load -i app.tar
+docker load -i nginx.tar
+docker load -i fail2ban.tar
+```
+
+### Docker Compose Deployment
+
+#### Quick Start
+
+1. **Copy the environment file:**
+```bash
+cp .env.example .env
+```
+
+2. **Edit `.env` and configure your settings:**
+```bash
+# Change the admin password (IMPORTANT!)
+ADMIN_PASSWORD=your-secure-password
+
+# Configure LM Studio endpoint if using AI NPCs
+LMSTUDIO_BASE_URL=http://host.docker.internal:1234
+
+# Adjust security settings as needed
+FAIL2BAN_BANTIME=3600
+RATE_LIMIT=10r/s
+```
+
+3. **Start the application:**
+```bash
+docker compose up -d
+```
+
+4. **Access the application:**
+Open http://localhost:8888 in your browser
+
+#### Environment Variables
+
+**Application Configuration:**
+- `PORT` - HTTP server port (default: 3001)
+- `ADMIN_PASSWORD` - Admin password for sudo command (default: admin123)
+
+**LM Studio AI Configuration:**
+- `LMSTUDIO_BASE_URL` - LM Studio API endpoint (default: http://192.168.0.18:1234)
+- `LMSTUDIO_MODEL` - AI model name (default: default)
+- `LMSTUDIO_TIMEOUT` - Request timeout in ms (default: 30000)
+- `LMSTUDIO_TEMPERATURE` - AI temperature 0.0-1.0 (default: 0.8)
+- `LMSTUDIO_MAX_TOKENS` - Max tokens in response (default: 150)
+
+**Nginx Configuration:**
+- `NGINX_PORT` - External HTTP port (default: 80)
+- `RATE_LIMIT` - Requests per second per IP (default: 10r/s)
+- `CLIENT_MAX_BODY_SIZE` - Max upload size (default: 10M)
+
+**Fail2ban Configuration:**
+- `FAIL2BAN_BANTIME` - Ban duration in seconds (default: 3600)
+- `FAIL2BAN_FINDTIME` - Time window for counting attempts (default: 600)
+- `FAIL2BAN_MAXRETRY` - Max failed attempts before ban (default: 5)
+
+See `.env.example` for detailed documentation and examples.
+
+#### Volume Mounting
+
+Game data is persisted in Docker volumes:
+- `game-data` - Database and game state
+- `nginx-logs` - Nginx access and error logs
+- `fail2ban-data` - Fail2ban ban state
+
+**Backup game data:**
+```bash
+docker run --rm -v game-data:/data -v $(pwd):/backup alpine tar czf /backup/game-data-backup.tar.gz -C /data .
+```
+
+**Restore game data:**
+```bash
+docker run --rm -v game-data:/data -v $(pwd):/backup alpine tar xzf /backup/game-data-backup.tar.gz -C /data
+```
+
+#### Managing the Stack
+
+**View logs:**
+```bash
+docker compose logs -f              # All services
+docker compose logs -f app          # Application only
+docker compose logs -f nginx        # Nginx only
+docker compose logs -f fail2ban     # Fail2ban only
+```
+
+**Stop the application:**
+```bash
+docker compose down
+```
+
+**Stop and remove volumes (WARNING: deletes all data):**
+```bash
+docker compose down -v
+```
+
+**Restart services:**
+```bash
+docker compose restart
+```
+
+### Security
+
+The Docker deployment includes multiple security layers:
+
+#### Architecture Overview
+
+```
+Internet → nginx:80 → ModSecurity WAF → app:3001
+                ↓
+           fail2ban (monitors logs)
+```
+
+#### ModSecurity Web Application Firewall
+
+- **OWASP Core Rule Set (CRS)** - Industry-standard protection against common attacks
+- **Paranoia Level 1** - Balanced protection with minimal false positives
+- **Anomaly Scoring** - Blocks requests exceeding threat threshold
+- **Protection Against:**
+  - SQL Injection
+  - Cross-Site Scripting (XSS)
+  - Path Traversal
+  - Remote Code Execution
+  - Command Injection
+
+**Configuration:** `nginx/modsecurity/modsecurity.conf` and `nginx/modsecurity/crs-setup.conf`
+
+#### Fail2ban Intrusion Prevention
+
+Automatically bans IPs that exhibit malicious behavior:
+
+- **nginx-auth jail** - Monitors 401/403 responses (failed authentication)
+- **nginx-limit-req jail** - Monitors rate limit violations
+- **app-auth jail** - Monitors failed login attempts to `/api/auth/login`
+
+**Default Settings:**
+- Ban time: 1 hour
+- Find time: 10 minutes
+- Max retry: 5 attempts
+
+**Check banned IPs:**
+```bash
+docker compose exec fail2ban fail2ban-client status nginx-auth
+```
+
+**Manually unban an IP:**
+```bash
+docker compose exec fail2ban fail2ban-client set nginx-auth unbanip <IP_ADDRESS>
+```
+
+**Configuration:** `fail2ban/jail.local` and `fail2ban/filter.d/*.conf`
+
+#### Security Headers
+
+Nginx adds security headers to all responses:
+- `X-Frame-Options: DENY` - Prevents clickjacking
+- `X-Content-Type-Options: nosniff` - Prevents MIME sniffing
+- `X-XSS-Protection: 1; mode=block` - Enables XSS filter
+- `Referrer-Policy: no-referrer-when-downgrade` - Controls referrer information
+
+#### Rate Limiting
+
+Nginx limits requests to prevent abuse and DoS attacks:
+- Default: 10 requests per second per IP
+- Burst: 20 requests (allows temporary spikes)
+- Configurable via `RATE_LIMIT` environment variable
+
+#### Network Isolation
+
+- **Frontend network** - Nginx to internet (bridge)
+- **Backend network** - Nginx to app (internal, no internet access)
+- Only nginx port 80 is exposed to the host
+
+#### Best Practices
+
+1. **Change default passwords** - Update `ADMIN_PASSWORD` in `.env`
+2. **Use strong passwords** - 12+ characters, mixed case, numbers, symbols
+3. **Monitor logs regularly** - `docker compose logs -f`
+4. **Keep images updated** - Rebuild periodically for security patches
+5. **Adjust fail2ban settings** - Based on your traffic patterns
+6. **Lower rate limits if under attack** - Temporarily reduce `RATE_LIMIT`
+7. **Backup data regularly** - Use volume backup commands above
+
+### Troubleshooting
+
+#### Port 80 Already in Use
+
+If port 80 is already in use, change the nginx port:
+
+```bash
+# In .env file
+NGINX_PORT=8080
+```
+
+Then access the application at http://localhost:8080
+
+#### Permission Errors
+
+**Volume mount permissions:**
+```bash
+# Fix permissions on game data directory
+docker compose down
+docker volume rm game-data
+docker compose up -d
+```
+
+**Fail2ban iptables errors:**
+Fail2ban requires `NET_ADMIN` and `NET_RAW` capabilities. These are already configured in `docker-compose.yml`.
+
+#### Database Issues
+
+**Reset database to fresh state:**
+```bash
+docker compose down
+docker volume rm game-data
+docker compose up -d
+```
+
+**View database contents:**
+```bash
+docker compose exec app ls -la /app/backend/data
+```
+
+#### Network Connectivity
+
+**LM Studio not reachable:**
+
+If LM Studio is running on the host machine:
+```bash
+# In .env file
+LMSTUDIO_BASE_URL=http://host.docker.internal:1234
+```
+
+If LM Studio is on another machine:
+```bash
+# In .env file
+LMSTUDIO_BASE_URL=http://<IP_ADDRESS>:1234
+```
+
+#### Application Not Accessible Through Nginx
+
+**Check service health:**
+```bash
+docker compose ps
+```
+
+All services should show "healthy" status.
+
+**Check nginx logs:**
+```bash
+docker compose logs nginx
+```
+
+**Check app logs:**
+```bash
+docker compose logs app
+```
+
+#### WAF False Positives
+
+If legitimate requests are being blocked by ModSecurity:
+
+1. **Check ModSecurity logs:**
+```bash
+docker compose logs nginx | grep ModSecurity
+```
+
+2. **Adjust paranoia level** in `nginx/modsecurity/crs-setup.conf`:
+```
+setvar:tx.paranoia_level=1  # Lower = fewer false positives
+```
+
+3. **Add rule exclusions** for specific endpoints if needed
+
+#### Fail2ban Not Banning
+
+**Check fail2ban status:**
+```bash
+docker compose exec fail2ban fail2ban-client status
+```
+
+**Check jail status:**
+```bash
+docker compose exec fail2ban fail2ban-client status nginx-auth
+```
+
+**Verify log format** matches filter patterns in `fail2ban/filter.d/*.conf`
+
+#### Health Check Failures
+
+**App health check failing:**
+```bash
+# Check if app is responding
+docker compose exec app wget -O- http://localhost:3001/api/health
+```
+
+**Nginx health check failing:**
+```bash
+# Check if nginx can reach app
+docker compose exec nginx wget -O- http://app:3001/api/health
+```
+
 ## Usage
 
 ### Player Commands

@@ -4,6 +4,8 @@
 
 import { createDatabase, DataStore, DatabasePersistence } from './database/index.js';
 import { APIServer } from './api/index.js';
+import { AdventureImportExport } from './database/AdventureImportExport.js';
+import { AdventureValidator } from './database/AdventureValidator.js';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -30,6 +32,12 @@ async function main() {
 
     console.log('Database initialized successfully');
     
+    // Load demo adventure if it doesn't exist
+    console.log('\nChecking for demo adventure...');
+    const validator = new AdventureValidator();
+    const importExport = new AdventureImportExport(dataStore, validator);
+    await importExport.loadDemoAdventure();
+    
     // List all adventures
     const adventures = await dataStore.listAdventures();
     console.log(`\nAvailable adventures: ${adventures.length}`);
@@ -55,6 +63,9 @@ async function main() {
     console.log('  POST   /api/adventures (requires auth)');
     console.log('  PUT    /api/adventures/:id (requires auth)');
     console.log('  DELETE /api/adventures/:id (requires auth)');
+    console.log('  POST   /api/adventures/import (requires auth)');
+    console.log('  GET    /api/adventures/:id/export (requires auth)');
+    console.log('  GET    /api/schema');
     console.log('  GET    /api/game-state');
     console.log('  POST   /api/game-state');
     console.log('  POST   /api/auth/login');

@@ -1,0 +1,214 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://terminal-adventure-game.com/schemas/adventure.json",
+  "title": "Adventure",
+  "description": "A complete adventure definition for the Terminal Adventure Game",
+  "type": "object",
+  "required": ["id", "name", "startLocationId", "locations"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier for the adventure",
+      "minLength": 1,
+      "pattern": "^[a-z0-9-]+$",
+      "examples": ["demo-adventure", "haunted-mansion"]
+    },
+    "name": {
+      "type": "string",
+      "description": "Display name of the adventure",
+      "minLength": 1,
+      "examples": ["The Lost Temple", "Haunted Mansion Mystery"]
+    },
+    "description": {
+      "type": "string",
+      "description": "Brief description of the adventure",
+      "examples": ["A mysterious ancient temple awaits exploration"]
+    },
+    "startLocationId": {
+      "type": "string",
+      "description": "ID of the starting location (must reference an existing location)",
+      "minLength": 1,
+      "examples": ["entrance", "foyer"]
+    },
+    "locations": {
+      "type": "array",
+      "description": "Array of all locations in the adventure",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/location"
+      }
+    }
+  },
+  "definitions": {
+    "location": {
+      "type": "object",
+      "description": "A location within the adventure",
+      "required": ["id", "name", "description"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the location within this adventure",
+          "minLength": 1,
+          "pattern": "^[a-z0-9-]+$",
+          "examples": ["entrance", "great-hall", "garden"]
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the location",
+          "minLength": 1,
+          "examples": ["Temple Entrance", "Great Hall"]
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of the location shown to the player",
+          "minLength": 1,
+          "examples": ["You stand before an ancient temple..."]
+        },
+        "exits": {
+          "type": "array",
+          "description": "Array of exits from this location",
+          "default": [],
+          "items": {
+            "$ref": "#/definitions/exit"
+          }
+        },
+        "characters": {
+          "type": "array",
+          "description": "Array of characters present in this location",
+          "default": [],
+          "items": {
+            "$ref": "#/definitions/character"
+          }
+        },
+        "items": {
+          "type": "array",
+          "description": "Array of items present in this location",
+          "default": [],
+          "items": {
+            "$ref": "#/definitions/item"
+          }
+        }
+      }
+    },
+    "exit": {
+      "type": "object",
+      "description": "An exit connecting two locations",
+      "required": ["direction", "targetLocationId"],
+      "properties": {
+        "direction": {
+          "type": "string",
+          "description": "Direction of the exit",
+          "enum": ["north", "south", "east", "west", "up", "down"],
+          "examples": ["north", "east"]
+        },
+        "targetLocationId": {
+          "type": "string",
+          "description": "ID of the destination location (must reference an existing location)",
+          "minLength": 1,
+          "examples": ["great-hall", "garden"]
+        }
+      }
+    },
+    "character": {
+      "type": "object",
+      "description": "A character (NPC) in the game",
+      "required": ["id", "name", "dialogue"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the character within this adventure",
+          "minLength": 1,
+          "pattern": "^[a-z0-9-]+$",
+          "examples": ["guard", "scholar", "ancient-sage"]
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the character",
+          "minLength": 1,
+          "examples": ["Temple Guard", "Ancient Sage"]
+        },
+        "dialogue": {
+          "type": "array",
+          "description": "Array of dialogue lines (can be empty for AI-powered NPCs)",
+          "items": {
+            "type": "string"
+          },
+          "examples": [
+            ["Welcome, traveler.", "The temple has stood for centuries."]
+          ]
+        },
+        "isAiPowered": {
+          "type": "boolean",
+          "description": "Whether this character uses AI for dialogue generation",
+          "default": false,
+          "examples": [false, true]
+        },
+        "personality": {
+          "type": "string",
+          "description": "Personality description for AI-powered characters (required if isAiPowered is true)",
+          "minLength": 1,
+          "examples": ["You are a wise sage who speaks in riddles..."]
+        },
+        "aiConfig": {
+          "type": "object",
+          "description": "Configuration for AI-powered characters",
+          "properties": {
+            "temperature": {
+              "type": "number",
+              "description": "AI temperature setting (0-2, higher = more creative)",
+              "minimum": 0,
+              "maximum": 2,
+              "default": 0.7,
+              "examples": [0.7, 0.8, 1.0]
+            },
+            "maxTokens": {
+              "type": "integer",
+              "description": "Maximum tokens for AI response",
+              "minimum": 1,
+              "default": 150,
+              "examples": [100, 150, 200]
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "isAiPowered": { "const": true }
+            }
+          },
+          "then": {
+            "required": ["personality"]
+          }
+        }
+      ]
+    },
+    "item": {
+      "type": "object",
+      "description": "An item that can be found in the game",
+      "required": ["id", "name", "description"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the item within this adventure",
+          "minLength": 1,
+          "pattern": "^[a-z0-9-]+$",
+          "examples": ["ancient-key", "magic-scroll"]
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name of the item",
+          "minLength": 1,
+          "examples": ["Ancient Key", "Magic Scroll"]
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the item shown to the player",
+          "minLength": 1,
+          "examples": ["A rusty key with strange markings"]
+        }
+      }
+    }
+  }
+}

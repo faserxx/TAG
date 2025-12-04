@@ -1,0 +1,59 @@
+# Fail2ban jail configuration for Terminal Adventure Game
+
+[DEFAULT]
+# Ban settings - configurable via environment variables
+bantime = $FAIL2BAN_BANTIME
+findtime = $FAIL2BAN_FINDTIME
+maxretry = $FAIL2BAN_MAXRETRY
+
+# Action to take when banning
+banaction = iptables-multiport
+banaction_allports = iptables-allports
+
+# Email notifications (disabled by default)
+destemail = root@localhost
+sender = fail2ban@localhost
+mta = sendmail
+
+# Default action (ban only, no email)
+action = %(action_)s
+
+# Ignore localhost
+ignoreip = 127.0.0.1/8 ::1
+
+# Disable default SSH jails
+[sshd]
+enabled = false
+
+[sshd-ddos]
+enabled = false
+
+# Jail for nginx authentication failures (401/403 responses)
+[nginx-auth]
+enabled = true
+port = http,https
+filter = nginx-auth
+logpath = /var/log/nginx/access.log
+maxretry = $FAIL2BAN_MAXRETRY
+findtime = $FAIL2BAN_FINDTIME
+bantime = $FAIL2BAN_BANTIME
+
+# Jail for nginx rate limit violations
+[nginx-limit-req]
+enabled = true
+port = http,https
+filter = nginx-limit-req
+logpath = /var/log/nginx/error.log
+maxretry = 3
+findtime = $FAIL2BAN_FINDTIME
+bantime = $FAIL2BAN_BANTIME
+
+# Jail for application authentication failures
+[app-auth]
+enabled = true
+port = http,https
+filter = app-auth
+logpath = /var/log/nginx/access.log
+maxretry = $FAIL2BAN_MAXRETRY
+findtime = $FAIL2BAN_FINDTIME
+bantime = $FAIL2BAN_BANTIME

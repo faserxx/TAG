@@ -12,6 +12,9 @@ import { AuthManager } from '../auth/AuthManager.js';
 import { Database } from 'sql.js';
 import { LMStudioClient, ConversationMessage } from '../ai/LMStudioClient.js';
 import { lmstudioConfig } from '../config/lmstudio.js';
+import { AdventureImportExport } from '../database/AdventureImportExport.js';
+import { AdventureValidator } from '../database/AdventureValidator.js';
+import adventureSchema from '../database/adventure-schema.json' assert { type: 'json' };
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -27,6 +30,7 @@ export class APIServer {
   private dataStore: DataStore;
   private authManager: AuthManager;
   private lmstudioClient: LMStudioClient;
+  private importExport: AdventureImportExport;
   private port: number;
   private server: any;
 
@@ -35,6 +39,8 @@ export class APIServer {
     this.dataStore = config.dataStore;
     this.authManager = new AuthManager(config.db);
     this.lmstudioClient = new LMStudioClient(lmstudioConfig);
+    const validator = new AdventureValidator();
+    this.importExport = new AdventureImportExport(this.dataStore, validator);
     this.port = config.port;
     this.setupMiddleware();
     this.setupRoutes();
@@ -61,7 +67,8 @@ export class APIServer {
     
     // Serve static files from frontend build in production
     if (process.env.NODE_ENV === 'production') {
-      const frontendPath = path.join(__dirname, '../../frontend/dist');
+      // In Docker, frontend is at /app/frontend/dist (not relative to backend)
+      const frontendPath = path.join(__dirname, '../../../frontend/dist');
       this.app.use(express.static(frontendPath));
     }
   }
@@ -105,6 +112,11 @@ export class APIServer {
     this.app.post('/api/adventures', this.requireAuth.bind(this), this.createAdventure.bind(this));
     this.app.put('/api/adventures/:id', this.requireAuth.bind(this), this.updateAdventure.bind(this));
     this.app.delete('/api/adventures/:id', this.requireAuth.bind(this), this.deleteAdventure.bind(this));
+
+    // Import/Export endpoints
+    this.app.post('/api/adventures/import', this.requireAuth.bind(this), this.importAdventure.bind(this));
+    this.app.get('/api/adventures/:id/export', this.requireAuth.bind(this), this.exportAdventure.bind(this));
+    this.app.get('/api/schema', this.getSchema.bind(this));
 
     // Game state endpoints
     this.app.get('/api/game-state', this.getGameState.bind(this));
@@ -204,6 +216,70 @@ export class APIServer {
     } catch (error) {
       next(error);
     }
+  }
+
+  /**
+   * Import adventure from JSON
+   */
+  private async importAdventure(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const adventureJson = req.body;
+      const replace = req.query.replace === 'true';
+
+      // Import the adventure
+      const result = await this.importExport.importFromJson(adventureJson, { replace });
+
+      if (!result.success) {
+        console.error('Import validation failed:', JSON.stringify(result.errors, null, 2));
+        res.status(400).json({
+          code: 'VALIDATION_ERROR',
+          message: 'Adventure validation failed',
+          errors: result.errors,
+          suggestion: 'Check the validation errors and fix the JSON file'
+        });
+        return;
+      }
+
+      // Load the imported adventure to return it
+      const adventure = await this.dataStore.loadAdventure(result.adventureId!);
+
+      res.status(201).json({
+        success: true,
+        message: 'Adventure imported successfully',
+        adventure: this.serializeAdventure(adventure)
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Export adventure to JSON
+   */
+  private async exportAdventure(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+
+      // Export the adventure
+      const adventureJson = await this.importExport.exportToJson(id);
+
+      // Set headers for file download
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', `attachment; filename="${id}.json"`);
+
+      res.json(adventureJson);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Get JSON schema
+   */
+  private getSchema(_req: Request, res: Response): void {
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', 'attachment; filename="adventure-schema.json"');
+    res.json(adventureSchema);
   }
 
   /**
@@ -402,8 +478,25 @@ export class APIServer {
         return;
       }
 
-      // Build location context
-      const locationContext = npcLocation ? npcLocation.name : undefined;
+      // Build detailed location context
+      let locationContext = undefined;
+      if (npcLocation) {
+        const otherCharacters = npcLocation.characters
+          .filter(char => char.id !== npcId)
+          .map(char => char.name);
+        
+        const items = npcLocation.items.map(item => item.name);
+        
+        const exits = Array.from(npcLocation.exits.keys());
+        
+        locationContext = {
+          name: npcLocation.name,
+          description: npcLocation.description,
+          characters: otherCharacters,
+          items: items,
+          exits: exits
+        };
+      }
 
       // Ensure LMStudio client is connected - return 503 for connection failures
       try {
@@ -474,7 +567,8 @@ export class APIServer {
           return;
         }
         
-        const frontendPath = path.join(__dirname, '../../frontend/dist/index.html');
+        // In Docker, frontend is at /app/frontend/dist (not relative to backend)
+        const frontendPath = path.join(__dirname, '../../../frontend/dist/index.html');
         res.sendFile(frontendPath);
       });
     }

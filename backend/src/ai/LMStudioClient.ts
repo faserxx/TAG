@@ -6,11 +6,19 @@ export interface ConversationMessage {
   content: string;
 }
 
+export interface LocationContext {
+  name: string;
+  description: string;
+  characters: string[];
+  items: string[];
+  exits: string[];
+}
+
 export interface GenerateResponseOptions {
   npc: Character;
   message: string;
   conversationHistory: ConversationMessage[];
-  locationContext?: string;
+  locationContext?: LocationContext | string;
 }
 
 export class LMStudioClient {
@@ -116,16 +124,38 @@ export class LMStudioClient {
     }
   }
 
-  buildSystemPrompt(npc: Character, locationContext?: string): string {
+  buildSystemPrompt(npc: Character, locationContext?: LocationContext | string): string {
     const personality = npc.personality || 'a helpful character';
     
     let prompt = `You are ${npc.name}, ${personality}.`;
     
     if (locationContext) {
-      prompt += ` You are currently in ${locationContext}.`;
+      if (typeof locationContext === 'string') {
+        // Legacy string format
+        prompt += ` You are currently in ${locationContext}.`;
+      } else {
+        // Rich context format
+        prompt += `\n\nYou are currently in ${locationContext.name}.`;
+        
+        if (locationContext.description) {
+          prompt += ` ${locationContext.description}`;
+        }
+        
+        if (locationContext.characters && locationContext.characters.length > 0) {
+          prompt += ` Other characters here: ${locationContext.characters.join(', ')}.`;
+        }
+        
+        if (locationContext.items && locationContext.items.length > 0) {
+          prompt += ` Items you can see: ${locationContext.items.join(', ')}.`;
+        }
+        
+        if (locationContext.exits && locationContext.exits.length > 0) {
+          prompt += ` Exits lead: ${locationContext.exits.join(', ')}.`;
+        }
+      }
     }
     
-    prompt += ' Respond in character, keeping your responses concise and engaging. Stay true to your personality and the game world.';
+    prompt += '\n\nRespond in character, keeping your responses concise and engaging. Stay true to your personality and the game world.';
     prompt += ' Do not use markdown formatting, bullet points, or special characters. Speak naturally in plain text.';
     prompt += ' This is a CHAT interaction, answers must be short and colloquial. One short sentence, maximum two short sentences.';
     
@@ -137,7 +167,7 @@ export class LMStudioClient {
    * Removes markdown formatting and cleans up the text
    */
   private sanitizeResponse(text: string): string {
-    return text
+    let cleaned = text
       // Remove markdown headers (###, ##, #)
       .replace(/^#{1,6}\s+/gm, '')
       // Remove markdown bold (**text** or __text__)
@@ -168,6 +198,24 @@ export class LMStudioClient {
       .replace(/  +/g, ' ')
       // Trim whitespace
       .trim();
+    
+    // Remove incomplete sentences (sentences not ending with proper punctuation)
+    // Find the last occurrence of sentence-ending punctuation
+    const sentenceEnders = /[.!?…]["']?$/;
+    const lastPunctuationMatch = cleaned.match(/[.!?…]["']?(?=[^.!?…]*$)/);
+    
+    if (lastPunctuationMatch && !sentenceEnders.test(cleaned)) {
+      // There's punctuation in the middle but not at the end - truncate after last complete sentence
+      const lastPunctuationIndex = cleaned.lastIndexOf(lastPunctuationMatch[0]);
+      cleaned = cleaned.substring(0, lastPunctuationIndex + lastPunctuationMatch[0].length).trim();
+    } else if (!sentenceEnders.test(cleaned)) {
+      // No sentence-ending punctuation at all - add a period if there's content
+      if (cleaned.length > 0) {
+        cleaned += '.';
+      }
+    }
+    
+    return cleaned;
   }
 
   async healthCheck(): Promise<boolean> {

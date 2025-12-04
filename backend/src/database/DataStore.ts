@@ -26,6 +26,9 @@ export class DataStore {
   constructor(db: Database, persistence?: DatabasePersistence) {
     this.db = db;
     this.persistence = persistence;
+    
+    // Enable foreign key constraints for CASCADE delete to work
+    this.db.run('PRAGMA foreign_keys = ON');
   }
 
   /**
